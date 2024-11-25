@@ -1,5 +1,6 @@
 import logging
 
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, viewsets
@@ -35,6 +36,7 @@ class LoginAPIView(APIView):
             400: "Invalid credentials",
         },
     )
+    @csrf_exempt
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
@@ -59,6 +61,7 @@ class LogoutAPIView(APIView):
         operation_description="Logout the current user",
         responses={200: "Logout successful"},
     )
+    @csrf_exempt
     def post(self, request):
         logout(request)
         return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
@@ -75,6 +78,7 @@ class RegisterAPIView(APIView):
             400: "User with this email already exists or invalid data",
         },
     )
+    @csrf_exempt
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
@@ -100,6 +104,7 @@ class VerifyEmailAPIView(APIView):
             400: "Invalid confirmation code",
         },
     )
+    @csrf_exempt
     def post(self, request):
         serializer = VerifyEmailSerializer(data=request.data)
         if serializer.is_valid():
@@ -122,6 +127,7 @@ class SetPasswordAPIView(APIView):
             400: "Passwords do not match",
         },
     )
+    @csrf_exempt
     def post(self, request):
         serializer = SetPasswordSerializer(data=request.data)
         if serializer.is_valid():
@@ -144,6 +150,7 @@ class MainAPIView(APIView):
         operation_description="Get the main welcome page",
         responses={200: "Main welcome page"},
     )
+    @csrf_exempt
     def get(self, request):
         if request.user.is_authenticated:
             return Response({'message': f'Welcome, {request.user.username}'}, status=status.HTTP_200_OK)

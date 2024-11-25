@@ -1,6 +1,7 @@
 import logging
 
 from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -32,6 +33,7 @@ class UploadFileAPIView(APIView):
             400: "Invalid data",
         },
     )
+    @csrf_exempt
     def post(self, request):
         serializer = UploadFileSerializer(data=request.data)
         if serializer.is_valid():
@@ -83,6 +85,7 @@ class MyFilesAPIView(APIView):
         operation_description="Get a list of files uploaded by the user",
         responses={200: FileSerializer(many=True)},
     )
+    @csrf_exempt
     def get(self, request):
         files = File.objects.filter(user=request.user)
         serializer = FileSerializer(files, many=True)
@@ -96,6 +99,7 @@ class DeleteFileAPIView(APIView):
         operation_description="Delete a file by ID",
         responses={204: "File deleted successfully", 404: "File not found"},
     )
+    @csrf_exempt
     def delete(self, request, file_id):
         file = get_object_or_404(File, id=file_id, user=request.user)
         try:
@@ -116,6 +120,7 @@ class DownloadFileAPIView(APIView):
             404: "File not found",
         },
     )
+    @csrf_exempt
     def get(self, request, file_id):
         file = get_object_or_404(File, id=file_id, user=request.user)
         file_path = file.file.name
@@ -140,6 +145,7 @@ class DownloadTranscriptionAPIView(APIView):
             404: "File not found",
         },
     )
+    @csrf_exempt
     def get(self, request, file_id):
         file = get_object_or_404(File, id=file_id, user=request.user)
         response = HttpResponse(file.transcription, content_type='text/plain')
@@ -157,6 +163,7 @@ class DownloadAnalysisAPIView(APIView):
             404: "No analysis result available for this file",
         },
     )
+    @csrf_exempt
     def get(self, request, file_id):
         file = get_object_or_404(File, id=file_id, user=request.user)
         if file.analysis_result:
