@@ -1,9 +1,9 @@
 import logging
-
+from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, viewsets
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework import status, viewsets
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.contrib.auth import authenticate, login, logout
@@ -11,10 +11,11 @@ from django.contrib.auth.models import User
 from .serializers import UserSerializer, LoginSerializer, SetPasswordSerializer, VerifyEmailSerializer, \
     RegisterSerializer
 from .models import UserProfile
-from .forms import RegisterForm
 from .tasks import send_verification_email
 import secrets
 from django.shortcuts import render
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class LoginAPIView(APIView):
     permission_classes = [AllowAny]
 
@@ -52,6 +54,7 @@ class LoginAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class LogoutAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -64,6 +67,7 @@ class LogoutAPIView(APIView):
         return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class RegisterAPIView(APIView):
     permission_classes = [AllowAny]
 
@@ -89,6 +93,7 @@ class RegisterAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class VerifyEmailAPIView(APIView):
     permission_classes = [AllowAny]
 
@@ -111,6 +116,7 @@ class VerifyEmailAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class SetPasswordAPIView(APIView):
     permission_classes = [AllowAny]
 
@@ -137,6 +143,7 @@ class SetPasswordAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class MainAPIView(APIView):
     permission_classes = [AllowAny]
 

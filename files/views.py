@@ -1,9 +1,8 @@
 import logging
-
 from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -16,10 +15,13 @@ import requests
 import os
 from django.conf import settings
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 logger = logging.getLogger(__name__)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class UploadFileAPIView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser)
@@ -76,6 +78,7 @@ class UploadFileAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class MyFilesAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -89,6 +92,7 @@ class MyFilesAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class DeleteFileAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -106,6 +110,7 @@ class DeleteFileAPIView(APIView):
         return Response({'message': 'File deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class DownloadFileAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -130,6 +135,7 @@ class DownloadFileAPIView(APIView):
         return streaming_response
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class DownloadTranscriptionAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -147,6 +153,7 @@ class DownloadTranscriptionAPIView(APIView):
         return response
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class DownloadAnalysisAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
