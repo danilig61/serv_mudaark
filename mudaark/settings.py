@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-afe7j%5h*(iph75synbd=_xjx#8ow2_c1%1mbt4@zww%o#@gft'
 DEBUG = True
 
-ALLOWED_HOSTS = ['mu.daark-team.ru', 'localhost']
+ALLOWED_HOSTS = ['mu.daark-team.ru']
 CSRF_TRUSTED_ORIGINS = ['https://mu.daark-team.ru']
 
 CORS_ALLOW_ALL_ORIGINS = True

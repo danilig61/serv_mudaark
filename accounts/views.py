@@ -19,11 +19,9 @@ from django.utils.decorators import method_decorator
 
 logger = logging.getLogger(__name__)
 
-
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-
 
 @method_decorator(csrf_exempt, name='dispatch')
 class LoginAPIView(APIView):
@@ -47,12 +45,11 @@ class LoginAPIView(APIView):
             if user is not None:
                 login(request, user)
                 logger.info(f"Login successful for user: {user.username}")
-                return Response({'message': 'Login successful'}, status=status.HTTP_200_OK)
+                return Response({'message': 'Login successful', 'status_code': status.HTTP_200_OK}, status=status.HTTP_200_OK)
             else:
                 logger.warning(f"Invalid credentials for email: {email}")
-                return Response({'error': 'Invalid credentials'}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+                return Response({'error': 'Invalid credentials', 'status_code': status.HTTP_400_BAD_REQUEST}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'errors': serializer.errors, 'status_code': status.HTTP_400_BAD_REQUEST}, status=status.HTTP_400_BAD_REQUEST)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class LogoutAPIView(APIView):
@@ -64,8 +61,7 @@ class LogoutAPIView(APIView):
     )
     def post(self, request):
         logout(request)
-        return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
-
+        return Response({'message': 'Logout successful', 'status_code': status.HTTP_200_OK}, status=status.HTTP_200_OK)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class RegisterAPIView(APIView):
@@ -84,14 +80,13 @@ class RegisterAPIView(APIView):
         if serializer.is_valid():
             email = serializer.validated_data['email']
             if User.objects.filter(email=email).exists():
-                return Response({'error': 'User with this email already exists'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'User with this email already exists', 'status_code': status.HTTP_400_BAD_REQUEST}, status=status.HTTP_400_BAD_REQUEST)
             confirmation_code = secrets.token_hex(3)
             request.session['confirmation_code'] = confirmation_code
             request.session['email'] = email
             send_verification_email.delay(email, confirmation_code)
-            return Response({'message': 'Verification email sent'}, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+            return Response({'message': 'Verification email sent', 'status_code': status.HTTP_200_OK}, status=status.HTTP_200_OK)
+        return Response({'errors': serializer.errors, 'status_code': status.HTTP_400_BAD_REQUEST}, status=status.HTTP_400_BAD_REQUEST)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class VerifyEmailAPIView(APIView):
@@ -110,11 +105,10 @@ class VerifyEmailAPIView(APIView):
         if serializer.is_valid():
             code = serializer.validated_data['code']
             if code == request.session.get('confirmation_code'):
-                return Response({'message': 'Email verified successfully'}, status=status.HTTP_200_OK)
+                return Response({'message': 'Email verified successfully', 'status_code': status.HTTP_200_OK}, status=status.HTTP_200_OK)
             else:
-                return Response({'error': 'Invalid confirmation code'}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+                return Response({'error': 'Invalid confirmation code', 'status_code': status.HTTP_400_BAD_REQUEST}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'errors': serializer.errors, 'status_code': status.HTTP_400_BAD_REQUEST}, status=status.HTTP_400_BAD_REQUEST)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class SetPasswordAPIView(APIView):
@@ -137,11 +131,10 @@ class SetPasswordAPIView(APIView):
                 email = request.session.get('email')
                 user = User.objects.create_user(email, email, password)
                 UserProfile.objects.create(user=user)
-                return Response({'message': 'Password set successfully'}, status=status.HTTP_200_OK)
+                return Response({'message': 'Password set successfully', 'status_code': status.HTTP_200_OK}, status=status.HTTP_200_OK)
             else:
-                return Response({'error': 'Passwords do not match'}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+                return Response({'error': 'Passwords do not match', 'status_code': status.HTTP_400_BAD_REQUEST}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'errors': serializer.errors, 'status_code': status.HTTP_400_BAD_REQUEST}, status=status.HTTP_400_BAD_REQUEST)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class MainAPIView(APIView):
@@ -153,6 +146,6 @@ class MainAPIView(APIView):
     )
     def get(self, request):
         if request.user.is_authenticated:
-            return Response({'message': f'Welcome, {request.user.username}'}, status=status.HTTP_200_OK)
+            return Response({'message': f'Welcome, {request.user.username}', 'status_code': status.HTTP_200_OK}, status=status.HTTP_200_OK)
         else:
-            return Response({'message': 'Welcome to the main page'}, status=status.HTTP_200_OK)
+            return Response({'message': 'Welcome to the main page', 'status_code': status.HTTP_200_OK}, status=status.HTTP_200_OK)

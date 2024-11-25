@@ -20,7 +20,6 @@ from django.utils.decorators import method_decorator
 
 logger = logging.getLogger(__name__)
 
-
 @method_decorator(csrf_exempt, name='dispatch')
 class UploadFileAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -63,7 +62,7 @@ class UploadFileAPIView(APIView):
                     len(response.content),
                 )
             else:
-                return Response({'error': 'Please provide a file or URL'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Please provide a file or URL', 'status_code': status.HTTP_400_BAD_REQUEST}, status=status.HTTP_400_BAD_REQUEST)
 
             file_instance = File.objects.create(
                 user=request.user,
@@ -74,9 +73,8 @@ class UploadFileAPIView(APIView):
                 status='pending',
             )
             process_file.delay(file_instance.id, file_path, analyze_text)
-            return Response({'message': 'File uploaded successfully'}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+            return Response({'message': 'File uploaded successfully', 'status_code': status.HTTP_201_CREATED}, status=status.HTTP_201_CREATED)
+        return Response({'errors': serializer.errors, 'status_code': status.HTTP_400_BAD_REQUEST}, status=status.HTTP_400_BAD_REQUEST)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class MyFilesAPIView(APIView):
@@ -89,8 +87,7 @@ class MyFilesAPIView(APIView):
     def get(self, request):
         files = File.objects.filter(user=request.user)
         serializer = FileSerializer(files, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
+        return Response({'data': serializer.data, 'status_code': status.HTTP_200_OK}, status=status.HTTP_200_OK)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class DeleteFileAPIView(APIView):
@@ -105,10 +102,9 @@ class DeleteFileAPIView(APIView):
         try:
             minio_client.remove_object(settings.AWS_STORAGE_BUCKET_NAME, file.file.name)
         except Exception as e:
-            return Response({'error': f"Error deleting file: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': f"Error deleting file: {e}", 'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         file.delete()
-        return Response({'message': 'File deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
-
+        return Response({'message': 'File deleted successfully', 'status_code': status.HTTP_204_NO_CONTENT}, status=status.HTTP_204_NO_CONTENT)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class DownloadFileAPIView(APIView):
@@ -134,7 +130,6 @@ class DownloadFileAPIView(APIView):
         streaming_response['Content-Disposition'] = f'attachment; filename="{file.name}"'
         return streaming_response
 
-
 @method_decorator(csrf_exempt, name='dispatch')
 class DownloadTranscriptionAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -151,7 +146,6 @@ class DownloadTranscriptionAPIView(APIView):
         response = HttpResponse(file.transcription, content_type='text/plain')
         response['Content-Disposition'] = f'attachment; filename="{file.name}_transcription.srt"'
         return response
-
 
 @method_decorator(csrf_exempt, name='dispatch')
 class DownloadAnalysisAPIView(APIView):
@@ -171,4 +165,4 @@ class DownloadAnalysisAPIView(APIView):
             response['Content-Disposition'] = f'attachment; filename="{file.name}_analysis.json"'
             return response
         else:
-            return Response({'error': 'No analysis result available for this file'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'No analysis result available for this file', 'status_code': status.HTTP_404_NOT_FOUND}, status=status.HTTP_404_NOT_FOUND)
