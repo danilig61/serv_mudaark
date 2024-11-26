@@ -33,6 +33,7 @@ class LoginAPIView(APIView):
         responses={
             200: "Login successful",
             400: "Invalid credentials",
+            500: "Internal Server Error",
         },
     )
     def post(self, request):
@@ -71,7 +72,7 @@ class LogoutAPIView(APIView):
     @swagger_auto_schema(
         operation_description="Logout the current user",
         request_body=LoginSerializer,
-        responses={200: "Logout successful", 401: "Unauthorized"},
+        responses={200: "Logout successful", 401: "Unauthorized", 500: "Internal Server Error"},
     )
     def post(self, request):
         try:
@@ -103,6 +104,12 @@ class LogoutAPIView(APIView):
                 'status_code': status.HTTP_401_UNAUTHORIZED,
                 'error': 'Unauthorized',
             }, status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            logger.error(f"Internal Server Error: {e}")
+            return Response({
+                'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
+                'error': 'Internal Server Error',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class RegisterAPIView(APIView):
@@ -114,6 +121,7 @@ class RegisterAPIView(APIView):
         responses={
             200: "Verification email sent",
             400: "User with this email already exists or invalid data",
+            500: "Internal Server Error",
         },
     )
     def post(self, request):
@@ -154,6 +162,7 @@ class VerifyEmailAPIView(APIView):
         responses={
             200: "Email verified successfully",
             400: "Invalid confirmation code",
+            500: "Internal Server Error",
         },
     )
     def post(self, request):
@@ -195,6 +204,7 @@ class SetPasswordAPIView(APIView):
         responses={
             200: "Password set successfully",
             400: "Invalid data or user not found",
+            500: "Internal Server Error",
         },
     )
     def post(self, request):
@@ -238,25 +248,31 @@ class SetPasswordAPIView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 
-
 class MainAPIView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
         operation_description="Get the main welcome page",
-        responses={200: "Main welcome page"},
+        responses={200: "Main welcome page", 500: "Internal Server Error"},
     )
     def get(self, request):
         logger.info("Starting MainAPIView get method")
-        if request.user.is_authenticated:
-            logger.info(f"Welcome, {request.user.username}")
+        try:
+            if request.user.is_authenticated:
+                logger.info(f"Welcome, {request.user.username}")
+                return Response({
+                    'status_code': status.HTTP_200_OK,
+                    'message': f'Welcome, {request.user.username}',
+                }, status=status.HTTP_200_OK)
+            else:
+                logger.info("Welcome to the main page")
+                return Response({
+                    'status_code': status.HTTP_200_OK,
+                    'message': 'Welcome to the main page',
+                }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Internal Server Error: {e}")
             return Response({
-                'status_code': status.HTTP_200_OK,
-                'message': f'Welcome, {request.user.username}',
-            }, status=status.HTTP_200_OK)
-        else:
-            logger.info("Welcome to the main page")
-            return Response({
-                'status_code': status.HTTP_200_OK,
-                'message': 'Welcome to the main page',
-            }, status=status.HTTP_200_OK)
+                'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
+                'error': 'Internal Server Error',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

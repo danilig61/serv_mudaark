@@ -10,7 +10,7 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from django.shortcuts import get_object_or_404
 from .models import File
-from .serializers import FileSerializer, UploadFileSerializer
+from .serializers import FileSerializer, UploadFileSerializer, UserInfoSerializer
 from .tasks import process_file
 from .config import minio_client
 import requests
@@ -31,6 +31,7 @@ class UploadFileAPIView(APIView):
             201: "File uploaded successfully",
             400: "Invalid data",
             401: "Unauthorized",
+            500: "Internal Server Error",
         },
     )
     def post(self, request):
@@ -95,6 +96,12 @@ class UploadFileAPIView(APIView):
                 'status_code': status.HTTP_401_UNAUTHORIZED,
                 'error': 'Unauthorized',
             }, status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            logger.error(f"Internal Server Error: {e}")
+            return Response({
+                'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
+                'error': 'Internal Server Error',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class MyFilesAPIView(APIView):
@@ -102,7 +109,7 @@ class MyFilesAPIView(APIView):
 
     @swagger_auto_schema(
         operation_description="Get a list of files uploaded by the user",
-        responses={200: FileSerializer(many=True), 401: "Unauthorized"},
+        responses={200: FileSerializer(many=True), 401: "Unauthorized", 500: "Internal Server Error"},
     )
     def get(self, request):
         try:
@@ -120,6 +127,12 @@ class MyFilesAPIView(APIView):
                 'status_code': status.HTTP_401_UNAUTHORIZED,
                 'error': 'Unauthorized',
             }, status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            logger.error(f"Internal Server Error: {e}")
+            return Response({
+                'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
+                'error': 'Internal Server Error',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class DeleteFileAPIView(APIView):
@@ -127,7 +140,8 @@ class DeleteFileAPIView(APIView):
 
     @swagger_auto_schema(
         operation_description="Delete a file by ID",
-        responses={204: "File deleted successfully", 404: "File not found", 401: "Unauthorized"},
+        responses={204: "File deleted successfully", 404: "File not found", 401: "Unauthorized",
+                   500: "Internal Server Error"},
     )
     def delete(self, request, file_id):
         try:
@@ -164,6 +178,7 @@ class DownloadFileAPIView(APIView):
             200: "File downloaded successfully",
             404: "File not found",
             401: "Unauthorized",
+            500: "Internal Server Error",
         },
     )
     def get(self, request, file_id):
@@ -187,6 +202,12 @@ class DownloadFileAPIView(APIView):
                 'status_code': status.HTTP_401_UNAUTHORIZED,
                 'error': 'Unauthorized',
             }, status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            logger.error(f"Internal Server Error: {e}")
+            return Response({
+                'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
+                'error': 'Internal Server Error',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class DownloadTranscriptionAPIView(APIView):
@@ -198,6 +219,7 @@ class DownloadTranscriptionAPIView(APIView):
             200: "Transcription downloaded successfully",
             404: "File not found",
             401: "Unauthorized",
+            500: "Internal Server Error",
         },
     )
     def get(self, request, file_id):
@@ -214,6 +236,12 @@ class DownloadTranscriptionAPIView(APIView):
                 'status_code': status.HTTP_401_UNAUTHORIZED,
                 'error': 'Unauthorized',
             }, status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            logger.error(f"Internal Server Error: {e}")
+            return Response({
+                'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
+                'error': 'Internal Server Error',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class DownloadAnalysisAPIView(APIView):
@@ -225,6 +253,7 @@ class DownloadAnalysisAPIView(APIView):
             200: "Analysis result downloaded successfully",
             404: "No analysis result available for this file",
             401: "Unauthorized",
+            500: "Internal Server Error",
         },
     )
     def get(self, request, file_id):
@@ -248,4 +277,21 @@ class DownloadAnalysisAPIView(APIView):
                 'status_code': status.HTTP_401_UNAUTHORIZED,
                 'error': 'Unauthorized',
             }, status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            logger.error(f"Internal Server Error: {e}")
+            return Response({
+                'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
+                'error': 'Internal Server Error',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+class UserInfoAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        logger.info("Starting UserInfoAPIView get method")
+        serializer = UserInfoSerializer(request.user)
+        return Response({
+            'status_code': status.HTTP_200_OK,
+            'user_info': serializer.data,
+        }, status=status.HTTP_200_OK)

@@ -74,4 +74,6 @@ def process_file(file_id, file_path, analyze_text):
         os.remove(temp_audio_path)
         logger.info(f"Finished process_file task for file ID: {file_id}")
     except Exception as e:
+        file_instance.status = 'error'
         logger.error(f"Error processing file: {e}")
+        file_instance.save()
