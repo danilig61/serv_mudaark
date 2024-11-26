@@ -1,4 +1,6 @@
 import logging
+import random
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from rest_framework.exceptions import AuthenticationFailed
@@ -125,7 +127,7 @@ class RegisterAPIView(APIView):
                     'status_code': status.HTTP_400_BAD_REQUEST,
                     'error': 'User with this email already exists',
                 }, status=status.HTTP_400_BAD_REQUEST)
-            confirmation_code = secrets.token_hex(3)
+            confirmation_code = str(random.randint(100000, 999999))  # Generate a 6-digit numeric code
             request.session['confirmation_code'] = confirmation_code
             request.session['email'] = email
             send_verification_email.delay(email, confirmation_code)
@@ -145,7 +147,7 @@ class VerifyEmailAPIView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
-        operation_description="Verify the email with a confirmation code",
+        operation_description="Verify email with confirmation code",
         request_body=VerifyEmailSerializer,
         responses={
             200: "Email verified successfully",
@@ -157,8 +159,14 @@ class VerifyEmailAPIView(APIView):
         serializer = VerifyEmailSerializer(data=request.data)
         if serializer.is_valid():
             code = serializer.validated_data['code']
-            if code == request.session.get('confirmation_code'):
-                logger.info(f"Email verified successfully for code: {code}")
+            stored_code = request.session.get('confirmation_code')
+            stored_email = request.session.get('email')
+            if stored_code and stored_email and code == stored_code:
+                user, created = User.objects.get_or_create(email=stored_email)
+                if created:
+                    user.is_active = False
+                    user.save()
+                logger.info(f"Email {stored_email} verified successfully")
                 return Response({
                     'status_code': status.HTTP_200_OK,
                     'message': 'Email verified successfully',
@@ -180,11 +188,11 @@ class SetPasswordAPIView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
-        operation_description="Set a password for the user",
+        operation_description="Set password for the user",
         request_body=SetPasswordSerializer,
         responses={
             200: "Password set successfully",
-            400: "Passwords do not match",
+            400: "Invalid data or user not found",
         },
     )
     def post(self, request):
@@ -193,27 +201,33 @@ class SetPasswordAPIView(APIView):
         if serializer.is_valid():
             password = serializer.validated_data['password']
             confirm_password = serializer.validated_data['confirm_password']
-            if password == confirm_password:
-                email = request.session.get('email')
-                user = User.objects.create_user(email, email, password)
-                UserProfile.objects.create(user=user)
+            if password != confirm_password:
+                return Response({
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'Passwords do not match',
+                }, status=status.HTTP_400_BAD_REQUEST)
+            email = request.session.get('email')
+            if email:
+                user = User.objects.get(email=email)
+                user.set_password(password)
+                user.is_active = True
+                user.save()
                 logger.info(f"Password set successfully for user: {email}")
                 return Response({
                     'status_code': status.HTTP_200_OK,
                     'message': 'Password set successfully',
                 }, status=status.HTTP_200_OK)
             else:
-                logger.warning("Passwords do not match")
+                logger.warning(f"Email not found in session")
                 return Response({
                     'status_code': status.HTTP_400_BAD_REQUEST,
-                    'error': 'Passwords do not match',
+                    'error': 'User not found',
                 }, status=status.HTTP_400_BAD_REQUEST)
         logger.error(f"Validation errors: {serializer.errors}")
         return Response({
             'status_code': status.HTTP_400_BAD_REQUEST,
             'errors': serializer.errors,
         }, status=status.HTTP_400_BAD_REQUEST)
-
 
 class MainAPIView(APIView):
     permission_classes = [AllowAny]
