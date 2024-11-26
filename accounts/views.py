@@ -1,6 +1,7 @@
 import logging
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -68,31 +69,38 @@ class LogoutAPIView(APIView):
     @swagger_auto_schema(
         operation_description="Logout the current user",
         request_body=LoginSerializer,
-        responses={200: "Logout successful"},
+        responses={200: "Logout successful", 401: "Unauthorized"},
     )
     def post(self, request):
-        logger.info("Starting LogoutAPIView post method")
-        refresh_token = request.data.get("refresh")
-        if refresh_token:
-            try:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
-                logger.info(f"Logout successful for user: {request.user.email}")
-                return Response({
-                    'status_code': status.HTTP_200_OK,
-                    'message': 'Logout successful',
-                }, status=status.HTTP_200_OK)
-            except Exception as e:
-                logger.error(f"Error during logout: {e}")
-                return Response({
-                    'status_code': status.HTTP_400_BAD_REQUEST,
-                    'error': 'Invalid refresh token',
-                }, status=status.HTTP_400_BAD_REQUEST)
-        logger.error("Refresh token is required")
-        return Response({
-            'status_code': status.HTTP_400_BAD_REQUEST,
-            'error': 'Refresh token is required',
-        }, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            logger.info("Starting LogoutAPIView post method")
+            refresh_token = request.data.get("refresh")
+            if refresh_token:
+                try:
+                    token = RefreshToken(refresh_token)
+                    token.blacklist()
+                    logger.info(f"Logout successful for user: {request.user.email}")
+                    return Response({
+                        'status_code': status.HTTP_200_OK,
+                        'message': 'Logout successful',
+                    }, status=status.HTTP_200_OK)
+                except Exception as e:
+                    logger.error(f"Error during logout: {e}")
+                    return Response({
+                        'status_code': status.HTTP_400_BAD_REQUEST,
+                        'error': 'Invalid refresh token',
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            logger.error("Refresh token is required")
+            return Response({
+                'status_code': status.HTTP_400_BAD_REQUEST,
+                'error': 'Refresh token is required',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except AuthenticationFailed as e:
+            logger.error(f"Authentication failed: {e}")
+            return Response({
+                'status_code': status.HTTP_401_UNAUTHORIZED,
+                'error': 'Unauthorized',
+            }, status=status.HTTP_401_UNAUTHORIZED)
 
 
 class RegisterAPIView(APIView):
