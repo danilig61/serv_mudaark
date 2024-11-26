@@ -39,6 +39,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'accounts.middleware.custom_auth_middleware.CustomAuthenticationMiddleware',
+
 ]
 
 ROOT_URLCONF = 'mudaark.urls'
