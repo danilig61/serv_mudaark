@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 
+from accounts.models import UserProfile
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -24,6 +26,12 @@ class LoginSerializer(serializers.Serializer):
 
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
+
+    def create(self, validated_data):
+        email = validated_data['email']
+        user = User.objects.create_user(username=email, email=email, is_active=False)
+        user_profile = UserProfile.objects.create(user=user)
+        return user
 
 
 class VerifyEmailSerializer(serializers.Serializer):

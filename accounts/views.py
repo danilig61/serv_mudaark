@@ -127,9 +127,11 @@ class RegisterAPIView(APIView):
                     'status_code': status.HTTP_400_BAD_REQUEST,
                     'error': 'User with this email already exists',
                 }, status=status.HTTP_400_BAD_REQUEST)
+            user = serializer.save()
             confirmation_code = str(random.randint(100000, 999999))  # Generate a 6-digit numeric code
-            request.session['confirmation_code'] = confirmation_code
-            request.session['email'] = email
+            user_profile = UserProfile.objects.get(user=user)
+            user_profile.verification_code = confirmation_code
+            user_profile.save()
             send_verification_email.delay(email, confirmation_code)
             logger.info(f"Verification email sent to: {email}")
             return Response({
@@ -159,19 +161,19 @@ class VerifyEmailAPIView(APIView):
         serializer = VerifyEmailSerializer(data=request.data)
         if serializer.is_valid():
             code = serializer.validated_data['code']
-            stored_code = request.session.get('confirmation_code')
-            stored_email = request.session.get('email')
-            if stored_code and stored_email and code == stored_code:
-                user, created = User.objects.get_or_create(email=stored_email)
-                if created:
-                    user.is_active = False
-                    user.save()
-                logger.info(f"Email {stored_email} verified successfully")
+            try:
+                user_profile = UserProfile.objects.get(verification_code=code)
+                user = user_profile.user
+                user.is_active = True
+                user.save()
+                user_profile.verification_code = None
+                user_profile.save()
+                logger.info(f"Email {user.email} verified successfully")
                 return Response({
                     'status_code': status.HTTP_200_OK,
                     'message': 'Email verified successfully',
                 }, status=status.HTTP_200_OK)
-            else:
+            except UserProfile.DoesNotExist:
                 logger.warning(f"Invalid confirmation code: {code}")
                 return Response({
                     'status_code': status.HTTP_400_BAD_REQUEST,
@@ -210,7 +212,6 @@ class SetPasswordAPIView(APIView):
             if email:
                 user = User.objects.get(email=email)
                 user.set_password(password)
-                user.is_active = True
                 user.save()
                 logger.info(f"Password set successfully for user: {email}")
                 return Response({
@@ -228,6 +229,7 @@ class SetPasswordAPIView(APIView):
             'status_code': status.HTTP_400_BAD_REQUEST,
             'errors': serializer.errors,
         }, status=status.HTTP_400_BAD_REQUEST)
+
 
 class MainAPIView(APIView):
     permission_classes = [AllowAny]
