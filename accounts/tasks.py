@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 @shared_task
 def send_verification_email(email, confirmation_code):
+    logger.info(f"Starting send_verification_email task for email: {email}")
     try:
         send_mail(
             'Confirm your email',
@@ -16,5 +17,6 @@ def send_verification_email(email, confirmation_code):
             [email],
             fail_silently=False,
         )
+        logger.info(f"Verification email sent to: {email}")
     except Exception as e:
         logger.error(f"Error sending verification email: {e}")

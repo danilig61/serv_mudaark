@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 @shared_task
 def process_file(file_id, file_path, analyze_text):
+    logger.info(f"Starting process_file task for file ID: {file_id}")
     try:
         file_instance = File.objects.get(id=file_id)
         file_instance.status = 'processing'
@@ -71,6 +72,6 @@ def process_file(file_id, file_path, analyze_text):
         # Удаление временного файла
         os.remove(temp_file_path)
         os.remove(temp_audio_path)
-
+        logger.info(f"Finished process_file task for file ID: {file_id}")
     except Exception as e:
         logger.error(f"Error processing file: {e}")

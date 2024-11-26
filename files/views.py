@@ -1,26 +1,24 @@
 import logging
+import os
+
 from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
 from django.shortcuts import get_object_or_404
 from .models import File
 from .serializers import FileSerializer, UploadFileSerializer
 from .tasks import process_file
 from .config import minio_client
 import requests
-import os
 from django.conf import settings
 from rest_framework.parsers import MultiPartParser, FormParser
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
 
 logger = logging.getLogger(__name__)
 
-@method_decorator(csrf_exempt, name='dispatch')
+
 class UploadFileAPIView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser)
@@ -34,6 +32,7 @@ class UploadFileAPIView(APIView):
         },
     )
     def post(self, request):
+        logger.info("Starting UploadFileAPIView post method")
         serializer = UploadFileSerializer(data=request.data)
         if serializer.is_valid():
             file = serializer.validated_data.get('file')
@@ -62,7 +61,11 @@ class UploadFileAPIView(APIView):
                     len(response.content),
                 )
             else:
-                return Response({'error': 'Please provide a file or URL', 'status_code': status.HTTP_400_BAD_REQUEST}, status=status.HTTP_400_BAD_REQUEST)
+                logger.error("Please provide a file or URL")
+                return Response({
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'Please provide a file or URL',
+                }, status=status.HTTP_400_BAD_REQUEST)
 
             file_instance = File.objects.create(
                 user=request.user,
@@ -73,10 +76,18 @@ class UploadFileAPIView(APIView):
                 status='pending',
             )
             process_file.delay(file_instance.id, file_path, analyze_text)
-            return Response({'message': 'File uploaded successfully', 'status_code': status.HTTP_201_CREATED}, status=status.HTTP_201_CREATED)
-        return Response({'errors': serializer.errors, 'status_code': status.HTTP_400_BAD_REQUEST}, status=status.HTTP_400_BAD_REQUEST)
+            logger.info(f"File uploaded successfully: {file_path}")
+            return Response({
+                'status_code': status.HTTP_201_CREATED,
+                'message': 'File uploaded successfully',
+            }, status=status.HTTP_201_CREATED)
+        logger.error(f"Validation errors: {serializer.errors}")
+        return Response({
+            'status_code': status.HTTP_400_BAD_REQUEST,
+            'errors': serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
 
-@method_decorator(csrf_exempt, name='dispatch')
+
 class MyFilesAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -85,11 +96,16 @@ class MyFilesAPIView(APIView):
         responses={200: FileSerializer(many=True)},
     )
     def get(self, request):
+        logger.info("Starting MyFilesAPIView get method")
         files = File.objects.filter(user=request.user)
         serializer = FileSerializer(files, many=True)
-        return Response({'data': serializer.data, 'status_code': status.HTTP_200_OK}, status=status.HTTP_200_OK)
+        logger.info(f"Retrieved files for user: {request.user.email}")
+        return Response({
+            'status_code': status.HTTP_200_OK,
+            'data': serializer.data,
+        }, status=status.HTTP_200_OK)
 
-@method_decorator(csrf_exempt, name='dispatch')
+
 class DeleteFileAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -98,15 +114,24 @@ class DeleteFileAPIView(APIView):
         responses={204: "File deleted successfully", 404: "File not found"},
     )
     def delete(self, request, file_id):
+        logger.info(f"Starting DeleteFileAPIView delete method for file ID: {file_id}")
         file = get_object_or_404(File, id=file_id, user=request.user)
         try:
             minio_client.remove_object(settings.AWS_STORAGE_BUCKET_NAME, file.file.name)
+            file.delete()
+            logger.info(f"File deleted successfully: {file_id}")
+            return Response({
+                'status_code': status.HTTP_204_NO_CONTENT,
+                'message': 'File deleted successfully',
+            }, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
-            return Response({'error': f"Error deleting file: {e}", 'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        file.delete()
-        return Response({'message': 'File deleted successfully', 'status_code': status.HTTP_204_NO_CONTENT}, status=status.HTTP_204_NO_CONTENT)
+            logger.error(f"Error deleting file: {e}")
+            return Response({
+                'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
+                'error': f"Error deleting file: {e}",
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@method_decorator(csrf_exempt, name='dispatch')
+
 class DownloadFileAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -118,6 +143,7 @@ class DownloadFileAPIView(APIView):
         },
     )
     def get(self, request, file_id):
+        logger.info(f"Starting DownloadFileAPIView get method for file ID: {file_id}")
         file = get_object_or_404(File, id=file_id, user=request.user)
         file_path = file.file.name
         response = minio_client.get_object(settings.AWS_STORAGE_BUCKET_NAME, file_path)
@@ -128,9 +154,10 @@ class DownloadFileAPIView(APIView):
 
         streaming_response = StreamingHttpResponse(iter_file(), content_type='application/octet-stream')
         streaming_response['Content-Disposition'] = f'attachment; filename="{file.name}"'
+        logger.info(f"File downloaded successfully: {file_id}")
         return streaming_response
 
-@method_decorator(csrf_exempt, name='dispatch')
+
 class DownloadTranscriptionAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -142,12 +169,14 @@ class DownloadTranscriptionAPIView(APIView):
         },
     )
     def get(self, request, file_id):
+        logger.info(f"Starting DownloadTranscriptionAPIView get method for file ID: {file_id}")
         file = get_object_or_404(File, id=file_id, user=request.user)
         response = HttpResponse(file.transcription, content_type='text/plain')
         response['Content-Disposition'] = f'attachment; filename="{file.name}_transcription.srt"'
+        logger.info(f"Transcription downloaded successfully: {file_id}")
         return response
 
-@method_decorator(csrf_exempt, name='dispatch')
+
 class DownloadAnalysisAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -159,10 +188,16 @@ class DownloadAnalysisAPIView(APIView):
         },
     )
     def get(self, request, file_id):
+        logger.info(f"Starting DownloadAnalysisAPIView get method for file ID: {file_id}")
         file = get_object_or_404(File, id=file_id, user=request.user)
         if file.analysis_result:
             response = JsonResponse(file.analysis_result)
             response['Content-Disposition'] = f'attachment; filename="{file.name}_analysis.json"'
+            logger.info(f"Analysis result downloaded successfully: {file_id}")
             return response
         else:
-            return Response({'error': 'No analysis result available for this file', 'status_code': status.HTTP_404_NOT_FOUND}, status=status.HTTP_404_NOT_FOUND)
+            logger.warning(f"No analysis result available for file ID: {file_id}")
+            return Response({
+                'status_code': status.HTTP_404_NOT_FOUND,
+                'error': 'No analysis result available for this file',
+            }, status=status.HTTP_404_NOT_FOUND)
