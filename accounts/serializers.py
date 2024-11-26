@@ -39,5 +39,6 @@ class VerifyEmailSerializer(serializers.Serializer):
 
 
 class SetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     confirm_password = serializers.CharField(write_only=True)

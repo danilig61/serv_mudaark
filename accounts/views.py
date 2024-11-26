@@ -203,32 +203,40 @@ class SetPasswordAPIView(APIView):
         if serializer.is_valid():
             password = serializer.validated_data['password']
             confirm_password = serializer.validated_data['confirm_password']
+            email = serializer.validated_data.get('email')  # Get email from request data
             if password != confirm_password:
                 return Response({
                     'status_code': status.HTTP_400_BAD_REQUEST,
                     'error': 'Passwords do not match',
                 }, status=status.HTTP_400_BAD_REQUEST)
-            email = request.session.get('email')
             if email:
-                user = User.objects.get(email=email)
-                user.set_password(password)
-                user.save()
-                logger.info(f"Password set successfully for user: {email}")
-                return Response({
-                    'status_code': status.HTTP_200_OK,
-                    'message': 'Password set successfully',
-                }, status=status.HTTP_200_OK)
+                try:
+                    user = User.objects.get(email=email)
+                    user.set_password(password)
+                    user.save()
+                    logger.info(f"Password set successfully for user: {email}")
+                    return Response({
+                        'status_code': status.HTTP_200_OK,
+                        'message': 'Password set successfully',
+                    }, status=status.HTTP_200_OK)
+                except User.DoesNotExist:
+                    logger.warning(f"User with email {email} not found")
+                    return Response({
+                        'status_code': status.HTTP_400_BAD_REQUEST,
+                        'error': 'User not found',
+                    }, status=status.HTTP_400_BAD_REQUEST)
             else:
-                logger.warning(f"Email not found in session")
+                logger.warning("Email not provided in request")
                 return Response({
                     'status_code': status.HTTP_400_BAD_REQUEST,
-                    'error': 'User not found',
+                    'error': 'Email is required',
                 }, status=status.HTTP_400_BAD_REQUEST)
         logger.error(f"Validation errors: {serializer.errors}")
         return Response({
             'status_code': status.HTTP_400_BAD_REQUEST,
             'errors': serializer.errors,
         }, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class MainAPIView(APIView):
