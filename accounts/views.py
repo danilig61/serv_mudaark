@@ -130,20 +130,13 @@ class RegisterAPIView(APIView):
         logger.info("Starting RegisterAPIView post method")
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
-            email = serializer.validated_data['email']
-            if User.objects.filter(email=email).exists():
-                logger.warning(f"User with email {email} already exists")
-                return Response({
-                    'status_code': status.HTTP_400_BAD_REQUEST,
-                    'error': 'User with this email already exists',
-                }, status=status.HTTP_400_BAD_REQUEST)
             user = serializer.save()
-            confirmation_code = str(random.randint(100000, 999999))  # Generate a 6-digit numeric code
+            confirmation_code = str(random.randint(100000, 999999))
             user_profile = UserProfile.objects.get(user=user)
             user_profile.verification_code = confirmation_code
             user_profile.save()
-            send_verification_email.delay(email, confirmation_code)
-            logger.info(f"Verification email sent to: {email}")
+            send_verification_email.delay(user.email, confirmation_code)
+            logger.info(f"Verification email sent to: {user.email}")
             return Response({
                 'status_code': status.HTTP_200_OK,
                 'message': 'Verification email sent',
