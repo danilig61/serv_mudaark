@@ -39,7 +39,7 @@ def google_raw_login_get_credentials() -> GoogleRawLoginCredentials:
 
 
 class GoogleRawLoginFlowService:
-    API_URI = reverse_lazy("api:google-auth:callback")
+    API_URI = reverse_lazy("google-auth-callback")
 
     GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/auth"
     GOOGLE_ACCESS_TOKEN_OBTAIN_URL = "https://oauth2.googleapis.com/token"
