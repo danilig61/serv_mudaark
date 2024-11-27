@@ -9,7 +9,7 @@ from rest_framework import status, viewsets
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import UserSerializer, LoginSerializer, SetPasswordSerializer, VerifyEmailSerializer, \
-    RegisterSerializer, ResendVerificationCodeSerializer
+    RegisterSerializer
 from .models import UserProfile
 from .tasks import send_verification_email
 from django.contrib.auth import login
