@@ -27,7 +27,9 @@ services:
     environment:
       POSTGRES_DB: mudaark
       POSTGRES_USER: mudaark
-      POSTGRES_PASSWORD: mudaark_u4TXZloZ+me6Xg
+      POSTGRES_PASSWORD: mudaark
+    ports:
+      - "5432:5432" 
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -49,7 +51,7 @@ services:
       - DJANGO_SETTINGS_MODULE=mudaark.settings
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - DATABASE_URL=postgres://mudaark:mudaark_u4TXZloZ+me6Xg@db:5432/mudaark
+      - DATABASE_URL=postgres://mudaark:mudaark@db:5432/mudaark
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
       - AWS_STORAGE_BUCKET_NAME=mudaark

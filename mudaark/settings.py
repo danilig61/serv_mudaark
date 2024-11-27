@@ -70,8 +70,8 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'mudaark',
         'USER': 'mudaark',
-        'PASSWORD': 'mudaark_u4TXZloZ+me6Xg',
-        'HOST': 'localhost',
+        'PASSWORD': 'mudaark',
+        'HOST': 'db',
         'PORT': 5432,
     }
 }
