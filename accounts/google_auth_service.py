@@ -16,18 +16,18 @@ class GoogleRawLoginCredentials:
 
 
 def google_raw_login_get_credentials() -> GoogleRawLoginCredentials:
-    client_id = settings.GOOGLE_OAUTH2_CLIENT_ID
-    client_secret = settings.GOOGLE_OAUTH2_CLIENT_SECRET
-    project_id = settings.GOOGLE_OAUTH2_PROJECT_ID
+    client_id = settings.DJANGO_GOOGLE_OAUTH2_CLIENT_ID
+    client_secret = settings.DJANGO_GOOGLE_OAUTH2_CLIENT_SECRET
+    project_id = settings.DJANGO_GOOGLE_OAUTH2_PROJECT_ID
 
     if not client_id:
-        raise ImproperlyConfigured("GOOGLE_OAUTH2_CLIENT_ID missing in settings.")
+        raise ImproperlyConfigured("DJANGO_GOOGLE_OAUTH2_CLIENT_ID missing in settings.")
 
     if not client_secret:
-        raise ImproperlyConfigured("GOOGLE_OAUTH2_CLIENT_SECRET missing in settings.")
+        raise ImproperlyConfigured("DJANGO_GOOGLE_OAUTH2_CLIENT_SECRET missing in settings.")
 
     if not project_id:
-        raise ImproperlyConfigured("GOOGLE_OAUTH2_PROJECT_ID missing in settings.")
+        raise ImproperlyConfigured("DJANGO_GOOGLE_OAUTH2_PROJECT_ID missing in settings.")
 
     credentials = GoogleRawLoginCredentials(
         client_id=client_id,

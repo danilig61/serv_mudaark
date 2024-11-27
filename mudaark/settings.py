@@ -104,13 +104,9 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-GOOGLE_OAUTH_CLIENT_ID = '1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com'
-GOOGLE_OAUTH_CLIENT_SECRET = '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'
-
 DJANGO_GOOGLE_OAUTH2_CLIENT_ID = '1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com'
 DJANGO_GOOGLE_OAUTH2_CLIENT_SECRET = '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'
 DJANGO_GOOGLE_OAUTH2_PROJECT_ID = 'axiomatic-lamp-442912-n9'
-
 
 
 AUTHENTICATION_BACKENDS = (
