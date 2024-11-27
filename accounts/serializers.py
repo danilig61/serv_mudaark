@@ -47,5 +47,5 @@ class SetPasswordSerializer(serializers.Serializer):
     confirm_password = serializers.CharField(write_only=True)
 
 
-# class ResendVerificationCodeSerializer(serializers.Serializer):
-#     email = serializers.EmailField()
+class ResendVerificationCodeSerializer(serializers.Serializer):
+    email = serializers.EmailField()
