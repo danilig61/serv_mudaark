@@ -12,6 +12,7 @@ CSRF_TRUSTED_ORIGINS = ['https://mu.daark-team.ru']
 
 CORS_ALLOW_ALL_ORIGINS = True
 
+BASE_BACKEND_URL = 'https://mu.daark-team.ru'
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
