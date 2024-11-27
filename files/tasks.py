@@ -11,13 +11,18 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-@shared_task
-def process_file(file_id, file_path, analyze_text):
+@shared_task(bind=True)
+def process_file(self, file_id, file_path, analyze_text):
     logger.info(f"Starting process_file task for file ID: {file_id}")
     try:
         file_instance = File.objects.get(id=file_id)
         file_instance.status = 'processing'
         file_instance.save()
+
+        # Проверка существования файла перед началом обработки
+        if not File.objects.filter(id=file_id).exists():
+            logger.info(f"File {file_id} has been deleted. Stopping task.")
+            return
 
         # Скачиваем файл из MinIO во временную директорию
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:

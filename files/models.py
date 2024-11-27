@@ -20,6 +20,7 @@ class File(models.Model):
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending', verbose_name='Статус')
     transcription = models.TextField(blank=True, null=True, verbose_name='Транскрипция')
     analysis_result = models.JSONField(blank=True, null=True, verbose_name='Результат анализа')
+    task_id = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):
         return self.name

@@ -1,6 +1,7 @@
 import logging
 import os
 
+from celery.worker.control import revoke
 from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.views import APIView
@@ -79,7 +80,9 @@ class UploadFileAPIView(APIView):
                     language=language,
                     status='pending',
                 )
-                process_file.delay(file_instance.id, file_path, analyze_text)
+                task = process_file.delay(file_instance.id, file_path, analyze_text)
+                file_instance.task_id = task.id
+                file_instance.save()
                 logger.info(f"File uploaded successfully: {file_path}")
                 return Response({
                     'status_code': status.HTTP_201_CREATED,
@@ -147,6 +150,12 @@ class DeleteFileAPIView(APIView):
         try:
             logger.info(f"Starting DeleteFileAPIView delete method for file ID: {file_id}")
             file = get_object_or_404(File, id=file_id, user=request.user)
+
+            # Отмена задачи Celery
+            task_id = file.task_id
+            if task_id:
+                revoke(task_id, terminate=True)
+
             try:
                 minio_client.remove_object(settings.AWS_STORAGE_BUCKET_NAME, file.file.name)
                 file.delete()
