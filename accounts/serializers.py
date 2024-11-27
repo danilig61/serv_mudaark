@@ -26,7 +26,7 @@ class RegisterSerializer(serializers.Serializer):
     def create(self, validated_data):
         email = validated_data['email']
         user = User.objects.create_user(username=email, email=email, is_active=False)
-        UserProfile.objects.create(user=user)
+        user_profile = UserProfile.objects.create(user=user)
         return user
 
 
@@ -46,5 +46,5 @@ class SetPasswordSerializer(serializers.Serializer):
     confirm_password = serializers.CharField(write_only=True)
 
 
-class ResendVerificationCodeSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+# class ResendVerificationCodeSerializer(serializers.Serializer):
+#     email = serializers.EmailField()

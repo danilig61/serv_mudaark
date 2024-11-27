@@ -130,13 +130,20 @@ class RegisterAPIView(APIView):
         logger.info("Starting RegisterAPIView post method")
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
+            email = serializer.validated_data['email']
+            if User.objects.filter(email=email).exists():
+                logger.warning(f"User with email {email} already exists")
+                return Response({
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'User with this email already exists',
+                }, status=status.HTTP_400_BAD_REQUEST)
             user = serializer.save()
-            confirmation_code = str(random.randint(100000, 999999))
+            confirmation_code = str(random.randint(100000, 999999))  # Generate a 6-digit numeric code
             user_profile = UserProfile.objects.get(user=user)
             user_profile.verification_code = confirmation_code
             user_profile.save()
-            send_verification_email.delay(user.email, confirmation_code)
-            logger.info(f"Verification email sent to: {user.email}")
+            send_verification_email.delay(email, confirmation_code)
+            logger.info(f"Verification email sent to: {email}")
             return Response({
                 'status_code': status.HTTP_200_OK,
                 'message': 'Verification email sent',
@@ -146,6 +153,7 @@ class RegisterAPIView(APIView):
             'status_code': status.HTTP_400_BAD_REQUEST,
             'errors': serializer.errors,
         }, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class VerifyEmailAPIView(APIView):
@@ -161,28 +169,27 @@ class VerifyEmailAPIView(APIView):
         },
     )
     def post(self, request):
-        logger.info("Starting VerifyEmailAPIView post method")
-        serializer = VerifyEmailSerializer(data=request.data)
+        logger.info("Starting RegisterAPIView post method")
+        serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
-            code = serializer.validated_data['code']
-            try:
-                user_profile = UserProfile.objects.get(verification_code=code)
-                user = user_profile.user
-                user.is_active = True
-                user.save()
-                user_profile.verification_code = None
-                user_profile.save()
-                logger.info(f"Email {user.email} verified successfully")
-                return Response({
-                    'status_code': status.HTTP_200_OK,
-                    'message': 'Email verified successfully',
-                }, status=status.HTTP_200_OK)
-            except UserProfile.DoesNotExist:
-                logger.warning(f"Invalid confirmation code: {code}")
+            email = serializer.validated_data['email']
+            if User.objects.filter(email=email).exists():
+                logger.warning(f"User with email {email} already exists")
                 return Response({
                     'status_code': status.HTTP_400_BAD_REQUEST,
-                    'error': 'Invalid confirmation code',
+                    'error': 'User with this email already exists',
                 }, status=status.HTTP_400_BAD_REQUEST)
+            user = serializer.save()
+            confirmation_code = str(random.randint(100000, 999999))  # Generate a 6-digit numeric code
+            user_profile = UserProfile.objects.get(user=user)
+            user_profile.verification_code = confirmation_code
+            user_profile.save()
+            send_verification_email.delay(email, confirmation_code)
+            logger.info(f"Verification email sent to: {email}")
+            return Response({
+                'status_code': status.HTTP_200_OK,
+                'message': 'Verification email sent',
+            }, status=status.HTTP_200_OK)
         logger.error(f"Validation errors: {serializer.errors}")
         return Response({
             'status_code': status.HTTP_400_BAD_REQUEST,
@@ -324,42 +331,42 @@ class GoogleAuthAPIView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ResendVerificationCodeAPIView(APIView):
-    permission_classes = [AllowAny]
-
-    @swagger_auto_schema(
-        operation_description="Resend verification code to the user's email",
-        request_body=ResendVerificationCodeSerializer,
-        responses={
-            200: "Verification email sent",
-            400: "Invalid email or user not found",
-            500: "Internal Server Error",
-        },
-    )
-    def post(self, request):
-        logger.info("Starting ResendVerificationCodeAPIView post method")
-        serializer = ResendVerificationCodeSerializer(data=request.data)
-        if serializer.is_valid():
-            email = serializer.validated_data['email']
-            try:
-                user_profile = UserProfile.objects.get(user__email=email)
-                confirmation_code = str(random.randint(100000, 999999))  # Generate a 6-digit numeric code
-                user_profile.verification_code = confirmation_code
-                user_profile.save()
-                send_verification_email.delay(email, confirmation_code)
-                logger.info(f"Verification email resent to: {email}")
-                return Response({
-                    'status_code': status.HTTP_200_OK,
-                    'message': 'Verification email sent',
-                }, status=status.HTTP_200_OK)
-            except UserProfile.DoesNotExist:
-                logger.warning(f"User with email {email} not found")
-                return Response({
-                    'status_code': status.HTTP_400_BAD_REQUEST,
-                    'error': 'User not found',
-                }, status=status.HTTP_400_BAD_REQUEST)
-        logger.error(f"Validation errors: {serializer.errors}")
-        return Response({
-            'status_code': status.HTTP_400_BAD_REQUEST,
-            'errors': serializer.errors,
-        }, status=status.HTTP_400_BAD_REQUEST)
+# class ResendVerificationCodeAPIView(APIView):
+#     permission_classes = [AllowAny]
+#
+#     @swagger_auto_schema(
+#         operation_description="Resend verification code to the user's email",
+#         request_body=ResendVerificationCodeSerializer,
+#         responses={
+#             200: "Verification email sent",
+#             400: "Invalid email or user not found",
+#             500: "Internal Server Error",
+#         },
+#     )
+#     def post(self, request):
+#         logger.info("Starting ResendVerificationCodeAPIView post method")
+#         serializer = ResendVerificationCodeSerializer(data=request.data)
+#         if serializer.is_valid():
+#             email = serializer.validated_data['email']
+#             try:
+#                 user_profile = UserProfile.objects.get(user__email=email)
+#                 confirmation_code = str(random.randint(100000, 999999))  # Generate a 6-digit numeric code
+#                 user_profile.verification_code = confirmation_code
+#                 user_profile.save()
+#                 send_verification_email.delay(email, confirmation_code)
+#                 logger.info(f"Verification email resent to: {email}")
+#                 return Response({
+#                     'status_code': status.HTTP_200_OK,
+#                     'message': 'Verification email sent',
+#                 }, status=status.HTTP_200_OK)
+#             except UserProfile.DoesNotExist:
+#                 logger.warning(f"User with email {email} not found")
+#                 return Response({
+#                     'status_code': status.HTTP_400_BAD_REQUEST,
+#                     'error': 'User not found',
+#                 }, status=status.HTTP_400_BAD_REQUEST)
+#         logger.error(f"Validation errors: {serializer.errors}")
+#         return Response({
+#             'status_code': status.HTTP_400_BAD_REQUEST,
+#             'errors': serializer.errors,
+#         }, status=status.HTTP_400_BAD_REQUEST)

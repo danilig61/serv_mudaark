@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import UserViewSet, LoginAPIView, LogoutAPIView, RegisterAPIView, VerifyEmailAPIView, SetPasswordAPIView, \
-    MainAPIView, GoogleAuthAPIView, ResendVerificationCodeAPIView
+    MainAPIView, GoogleAuthAPIView
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -16,6 +16,6 @@ urlpatterns = [
     path('main/', MainAPIView.as_view(), name='main'),
     path('auth/', include('social_django.urls', namespace='social')),
     path('google-auth/', GoogleAuthAPIView.as_view(), name='google-auth'),
-    path('resend-verification-code/', ResendVerificationCodeAPIView.as_view(), name='resend-verification-code'),
+    # path('resend-verification-code/', ResendVerificationCodeAPIView.as_view(), name='resend-verification-code'),
 
 ]
