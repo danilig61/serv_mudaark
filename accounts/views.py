@@ -15,9 +15,8 @@ from .tasks import send_verification_email
 from django.contrib.auth import login
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.shortcuts import redirect
-from .google_auth_service import GoogleRawLoginFlowService
-from rest_framework import serializers
+from social_django.utils import load_strategy, load_backend
+from social_core.exceptions import MissingBackend
 
 logger = logging.getLogger(__name__)
 
@@ -282,76 +281,51 @@ class MainAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class GoogleLoginRedirectAPI(APIView):
-    def get(self, request, *args, **kwargs):
-        google_login_flow = GoogleRawLoginFlowService()
-        authorization_url, state = google_login_flow.get_authorization_url()
-        request.session["google_oauth2_state"] = state
-        return redirect(authorization_url)
+class GoogleAuthAPIView(APIView):
+    permission_classes = [AllowAny]
 
+    def post(self, request):
+        provider = 'google-oauth2'
+        strategy = load_strategy(request)
 
-class GoogleLoginAPI(APIView):
-    class InputSerializer(serializers.Serializer):
-        code = serializers.CharField(required=False)
-        error = serializers.CharField(required=False)
-        state = serializers.CharField(required=False)
+        try:
+            backend = load_backend(strategy=strategy, name=provider, redirect_uri=None)
+        except MissingBackend as e:
+            return Response({
+                'status_code': status.HTTP_400_BAD_REQUEST,
+                'error': 'Invalid provider',
+                'details': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({
+                'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
+                'error': 'Error loading backend',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def get(self, request, *args, **kwargs):
-        input_serializer = self.InputSerializer(data=request.GET)
-        input_serializer.is_valid(raise_exception=True)
+        try:
+            user = backend.do_auth(request.data.get('access_token'))
+        except Exception as e:
+            return Response({
+                'status_code': status.HTTP_400_BAD_REQUEST,
+                'error': 'Authentication error',
+                'details': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-        validated_data = input_serializer.validated_data
-        code = validated_data.get("code")
-        error = validated_data.get("error")
-        state = validated_data.get("state")
-
-        if error is not None:
-            return Response(
-                {"error": error},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if code is None or state is None:
-            return Response(
-                {"error": "Code and state are required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        session_state = request.session.get("google_oauth2_state")
-
-        if session_state is None:
-            return Response(
-                {"error": "CSRF check failed."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        del request.session["google_oauth2_state"]
-
-        if state != session_state:
-            return Response(
-                {"error": "CSRF check failed."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        google_login_flow = GoogleRawLoginFlowService()
-        tokens = google_login_flow.get_tokens(code=code)
-        id_token_decoded = google_login_flow.decode_id_token(tokens["id_token"])
-        user_info = google_login_flow.get_user_info(access_token=tokens["access_token"])
-
-        user_email = id_token_decoded["email"]
-        user, created = User.objects.get_or_create(email=user_email, defaults={'username': user_email})
-
-        if created:
-            UserProfile.objects.create(user=user)
-
-        login(request, user)
-
-        result = {
-            "id_token_decoded": id_token_decoded,
-            "user_info": user_info,
-        }
-
-        return Response(result)
+        if user and user.is_active:
+            login(request, user)
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'status_code': status.HTTP_200_OK,
+                'message': 'Login successful',
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'status_code': status.HTTP_400_BAD_REQUEST,
+                'error': 'Unable to authenticate with the provided credentials'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ResendVerificationCodeAPIView(APIView):
