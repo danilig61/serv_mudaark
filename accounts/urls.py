@@ -7,6 +7,8 @@ from .views import UserViewSet, LoginAPIView, LogoutAPIView, RegisterAPIView, Ve
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
 
+app_name = 'accounts'
+
 urlpatterns = [
     path('', include(router.urls)),
     path('login/', LoginAPIView.as_view(), name='login'),

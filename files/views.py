@@ -1,7 +1,7 @@
 import logging
 import os
 
-from celery.worker.control import revoke
+from celery import current_app
 from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.views import APIView
@@ -154,7 +154,7 @@ class DeleteFileAPIView(APIView):
             # Отмена задачи Celery
             task_id = file.task_id
             if task_id:
-                revoke(task_id, terminate=True)
+                current_app.control.revoke(task_id, terminate=True)
 
             try:
                 minio_client.remove_object(settings.AWS_STORAGE_BUCKET_NAME, file.file.name)
