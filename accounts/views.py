@@ -313,6 +313,11 @@ class GoogleAuthAPIView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         if user and user.is_active:
+            # Создаем или обновляем профиль пользователя
+            profile, created = UserProfile.objects.get_or_create(user=user)
+            profile.google_id = user.social_auth.get(provider=provider).uid
+            profile.save()
+
             login(request, user)
             refresh = RefreshToken.for_user(user)
             return Response({
