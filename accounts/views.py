@@ -4,6 +4,7 @@ import random
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.parsers import FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status, viewsets
 from drf_yasg.utils import swagger_auto_schema
@@ -305,6 +306,8 @@ class GoogleLoginAPIView(APIView):
 
 
 class GoogleCallbackAPIView(APIView):
+    parser_classes = [FormParser]  # Укажите, что используется FormParser
+
     def post(self, request):
         code = request.data.get('code')  # Получаем код из тела запроса
         if not code:
@@ -331,6 +334,7 @@ class GoogleCallbackAPIView(APIView):
                 return Response({'error': 'Authentication failed'}, status=400)
         except AuthException as e:
             return Response({'error': str(e)}, status=400)
+
 
 class ResendVerificationCodeAPIView(APIView):
     permission_classes = [AllowAny]
