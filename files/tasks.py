@@ -33,6 +33,12 @@ def process_file(self, file_id, file_path, analyze_text):
             )
             temp_file_path = temp_file.name
 
+        # Проверка существования файла перед обработкой видео
+        if not File.objects.filter(id=file_id).exists():
+            logger.info(f"File {file_id} has been deleted. Stopping task.")
+            os.remove(temp_file_path)
+            return
+
         # Обработка видеофайла
         clip = mp.VideoFileClip(temp_file_path)
         total_seconds = int(clip.duration)
@@ -46,6 +52,13 @@ def process_file(self, file_id, file_path, analyze_text):
         with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_audio_file:
             temp_audio_path = temp_audio_file.name
             clip.audio.write_audiofile(temp_audio_path, codec='pcm_s16le')
+
+        # Проверка существования файла перед отправкой на транскрипцию
+        if not File.objects.filter(id=file_id).exists():
+            logger.info(f"File {file_id} has been deleted. Stopping task.")
+            os.remove(temp_file_path)
+            os.remove(temp_audio_path)
+            return
 
         with open(temp_audio_path, 'rb') as audio_file:
             audio_bytes = io.BytesIO(audio_file.read())

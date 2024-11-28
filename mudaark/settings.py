@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-afe7j%5h*(iph75synbd=_xjx#8ow2_c1%1mbt4@zww%o#@gft'
 DEBUG = True
 
-ALLOWED_HOSTS = ['mu.daark-team.ru', '94.130.54.172']
+ALLOWED_HOSTS = ['mu.daark-team.ru', '94.130.54.172', 'localhost']
 CSRF_TRUSTED_ORIGINS = ['https://mu.daark-team.ru']
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -103,15 +103,21 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com'
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
+GOOGLE_OAUTH2_CLIENT_ID = '1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com'
+GOOGLE_OAUTH2_CLIENT_SECRET = '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'
+GOOGLE_OAUTH2_PROJECT_ID = 'axiomatic-lamp-442912-n9'
 
 SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'https://mu.daark-team.ru/accounts/google/callback/'
+
 AUTHENTICATION_BACKENDS = (
     'social_core.backends.google.GoogleOAuth2',
     'django.contrib.auth.backends.ModelBackend',
 )
+# SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com'
+# SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
+#
+# SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'https://mu.daark-team.ru/accounts/google/callback/'
+
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'

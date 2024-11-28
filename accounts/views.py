@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.parsers import FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, serializers
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -15,11 +15,13 @@ from .serializers import UserSerializer, LoginSerializer, SetPasswordSerializer,
     RegisterSerializer, ResendVerificationCodeSerializer
 from .models import UserProfile
 from .tasks import send_verification_email
-from django.contrib.auth import login
-from rest_framework.response import Response
 from rest_framework.views import APIView
-from social_django.utils import load_strategy, load_backend
-from social_core.exceptions import MissingBackend, AuthException
+from rest_framework.response import Response
+from rest_framework import status
+from django.shortcuts import redirect
+from django.contrib.auth import login
+from .services import GoogleRawLoginFlowService
+
 
 logger = logging.getLogger(__name__)
 
@@ -284,66 +286,74 @@ class MainAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class GoogleLoginAPIView(APIView):
-    def get(self, request):
-        try:
-            # Создаем OAuth2 backend
-            strategy = load_strategy(request)
-            backend = load_backend(strategy, "google-oauth2",
-                                   redirect_uri=settings.SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI)
+class GoogleLoginRedirectAPI(APIView):
+    def get(self, request, *args, **kwargs):
+        google_login_flow = GoogleRawLoginFlowService()
+        authorization_url, state = google_login_flow.get_authorization_url()
+        request.session["google_oauth2_state"] = state
+        return redirect(authorization_url)
 
-            # Генерируем ссылку на авторизацию
-            authorization_url = backend.auth_url()
-            return Response({
-                'status_code': 200,
-                'authorization_url': authorization_url
-            })
-        except MissingBackend:
-            return Response({
-                'status_code': 400,
-                'error': 'Missing authentication backend'
-            })
+class GoogleLoginAPI(APIView):
+    class InputSerializer(serializers.Serializer):
+        code = serializers.CharField(required=False)
+        error = serializers.CharField(required=False)
+        state = serializers.CharField(required=False)
 
+    def get(self, request, *args, **kwargs):
+        input_serializer = self.InputSerializer(data=request.GET)
+        input_serializer.is_valid(raise_exception=True)
+        validated_data = input_serializer.validated_data
+        code = validated_data.get("code")
+        error = validated_data.get("error")
+        state = validated_data.get("state")
 
-class GoogleCallbackAPIView(APIView):
-    parser_classes = [FormParser]  # Укажите, что используется FormParser
+        if error is not None:
+            return Response(
+                {"error": error},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-    def get(self, request):
-        code = request.GET.get('code')  # Получаем код из URL-параметров
-        if not code:
-            return Response({'error': 'Authorization code is required'}, status=400)
+        if code is None or state is None:
+            return Response(
+                {"error": "Code and state are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Перенаправляем на POST-запрос с кодом
-        return self.post(request, code=code)
+        session_state = request.session.get("google_oauth2_state")
 
-    def post(self, request, code=None):
-        logger.debug(f"Request data: {request.data}")
-        if code is None:
-            code = request.data.get('code')  # Получаем код из тела запроса
-        if not code:
-            return Response({'error': 'Authorization code is required'}, status=400)
+        if session_state is None:
+            return Response(
+                {"error": "CSRF check failed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        try:
-            strategy = load_strategy(request)
-            backend = load_backend(strategy, 'google-oauth2',
-                                   redirect_uri=settings.SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI)
+        del request.session["google_oauth2_state"]
 
-            # Обмениваем код на токен и получаем пользователя
-            user = backend.do_auth(code)
+        if state != session_state:
+            return Response(
+                {"error": "CSRF check failed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-            if user:
-                # Генерация JWT токенов
-                refresh = RefreshToken.for_user(user)
-                return Response({
-                    'status_code': 200,
-                    'message': 'Authentication successful',
-                    'refresh': str(refresh),
-                    'access': str(refresh.access_token),
-                })
-            else:
-                return Response({'error': 'Authentication failed'}, status=400)
-        except AuthException as e:
-            return Response({'error': str(e)}, status=400)
+        google_login_flow = GoogleRawLoginFlowService()
+        google_tokens = google_login_flow.get_tokens(code=code)
+        id_token_decoded = google_tokens.decode_id_token()
+        user_info = google_login_flow.get_user_info(google_tokens=google_tokens)
+        user_email = id_token_decoded["email"]
+        user = User.objects.filter(email=user_email).first()
+
+        if user is None:
+            return Response(
+                {"error": f"User with email {user_email} is not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        login(request, user)
+        result = {
+            "id_token_decoded": id_token_decoded,
+            "user_info": user_info,
+        }
+        return Response(result)
 
 
 class ResendVerificationCodeAPIView(APIView):
