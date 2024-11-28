@@ -10,7 +10,7 @@ from .models import GoogleAccessTokens
 from .utils import google_raw_login_get_credentials
 
 class GoogleRawLoginFlowService:
-    API_URI = reverse_lazy("accounts:google-callback")
+    API_URI = reverse_lazy("accounts/google/callback/")
 
     GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/auth"
     GOOGLE_ACCESS_TOKEN_OBTAIN_URL = "https://oauth2.googleapis.com/token"
