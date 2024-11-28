@@ -1,6 +1,7 @@
 import logging
 import random
 
+from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from rest_framework.exceptions import AuthenticationFailed
@@ -10,7 +11,6 @@ from rest_framework import status, viewsets
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from mudaark import settings
 from .serializers import UserSerializer, LoginSerializer, SetPasswordSerializer, VerifyEmailSerializer, \
     RegisterSerializer, ResendVerificationCodeSerializer
 from .models import UserProfile
@@ -306,10 +306,11 @@ class GoogleLoginAPIView(APIView):
 
 
 class GoogleCallbackAPIView(APIView):
-    parser_classes = [FormParser]  # Укажите, что используется FormParser
+    parser_classes = [FormParser]
 
     def post(self, request):
-        code = request.data.get('code')  # Получаем код из тела запроса
+        logger.debug(f"Request data: {request.data}")
+        code = request.data.get('code')
         if not code:
             return Response({'error': 'Authorization code is required'}, status=400)
 
