@@ -8,6 +8,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status, viewsets
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from mudaark import settings
 from .serializers import UserSerializer, LoginSerializer, SetPasswordSerializer, VerifyEmailSerializer, \
     RegisterSerializer, ResendVerificationCodeSerializer
 from .models import UserProfile
@@ -16,7 +18,7 @@ from django.contrib.auth import login
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from social_django.utils import load_strategy, load_backend
-from social_core.exceptions import MissingBackend
+from social_core.exceptions import MissingBackend, AuthException
 
 logger = logging.getLogger(__name__)
 
@@ -281,57 +283,54 @@ class MainAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class GoogleAuthAPIView(APIView):
-    permission_classes = [AllowAny]
+class GoogleLoginAPIView(APIView):
+    def get(self, request):
+        try:
+            # Создаем OAuth2 backend
+            strategy = load_strategy(request)
+            backend = load_backend(strategy, "google-oauth2",
+                                   redirect_uri=settings.SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI)
 
+            # Генерируем ссылку на авторизацию
+            authorization_url = backend.auth_url()
+            return Response({
+                'status_code': 200,
+                'authorization_url': authorization_url
+            })
+        except MissingBackend:
+            return Response({
+                'status_code': 400,
+                'error': 'Missing authentication backend'
+            })
+
+
+class GoogleCallbackAPIView(APIView):
     def post(self, request):
-        provider = 'google-oauth2'
-        strategy = load_strategy(request)
+        code = request.data.get('code')  # Получаем код из тела запроса
+        if not code:
+            return Response({'error': 'Authorization code is required'}, status=400)
 
         try:
-            backend = load_backend(strategy=strategy, name=provider, redirect_uri=None)
-        except MissingBackend as e:
-            return Response({
-                'status_code': status.HTTP_400_BAD_REQUEST,
-                'error': 'Invalid provider',
-                'details': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({
-                'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
-                'error': 'Error loading backend',
-                'details': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            strategy = load_strategy(request)
+            backend = load_backend(strategy, 'google-oauth2',
+                                   redirect_uri=settings.SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI)
 
-        try:
-            user = backend.do_auth(request.data.get('access_token'))
-        except Exception as e:
-            return Response({
-                'status_code': status.HTTP_400_BAD_REQUEST,
-                'error': 'Authentication error',
-                'details': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
+            # Обмениваем код на токен и получаем пользователя
+            user = backend.do_auth(code)
 
-        if user and user.is_active:
-            # Создаем или обновляем профиль пользователя
-            profile, created = UserProfile.objects.get_or_create(user=user)
-            profile.google_id = user.social_auth.get(provider=provider).uid
-            profile.save()
-
-            login(request, user)
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                'status_code': status.HTTP_200_OK,
-                'message': 'Login successful',
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }, status=status.HTTP_200_OK)
-        else:
-            return Response({
-                'status_code': status.HTTP_400_BAD_REQUEST,
-                'error': 'Unable to authenticate with the provided credentials'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
+            if user:
+                # Генерация JWT токенов
+                refresh = RefreshToken.for_user(user)
+                return Response({
+                    'status_code': 200,
+                    'message': 'Authentication successful',
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                })
+            else:
+                return Response({'error': 'Authentication failed'}, status=400)
+        except AuthException as e:
+            return Response({'error': str(e)}, status=400)
 
 class ResendVerificationCodeAPIView(APIView):
     permission_classes = [AllowAny]
