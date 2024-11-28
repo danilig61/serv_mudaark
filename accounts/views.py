@@ -306,11 +306,20 @@ class GoogleLoginAPIView(APIView):
 
 
 class GoogleCallbackAPIView(APIView):
-    parser_classes = [FormParser]
+    parser_classes = [FormParser]  # Укажите, что используется FormParser
 
-    def post(self, request):
+    def get(self, request):
+        code = request.GET.get('code')  # Получаем код из URL-параметров
+        if not code:
+            return Response({'error': 'Authorization code is required'}, status=400)
+
+        # Перенаправляем на POST-запрос с кодом
+        return self.post(request, code=code)
+
+    def post(self, request, code=None):
         logger.debug(f"Request data: {request.data}")
-        code = request.data.get('code')
+        if code is None:
+            code = request.data.get('code')  # Получаем код из тела запроса
         if not code:
             return Response({'error': 'Authorization code is required'}, status=400)
 
