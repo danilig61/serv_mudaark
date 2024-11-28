@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import UserViewSet, LoginAPIView, LogoutAPIView, RegisterAPIView, VerifyEmailAPIView, SetPasswordAPIView, \
-    MainAPIView, GoogleAuthAPIView, ResendVerificationCodeAPIView
+    MainAPIView, ResendVerificationCodeAPIView, GoogleLoginAPIView, GoogleCallbackAPIView
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
