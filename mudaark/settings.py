@@ -122,8 +122,19 @@ SOCIAL_AUTH_YANDEX_OAUTH2_KEY = '81e338006fc040c782f04a59429ef02e'
 SOCIAL_AUTH_YANDEX_OAUTH2_SECRET = 'e952f20146314a6bb4cb966a7834c173'
 
 SOCIAL_AUTH_YANDEX_OAUTH2_REDIRECT_URI = 'http://mu.daark-team.ru/auth/complete/yandex-oauth2/'
+SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'http://mu.daark-team.ru/auth/complete/google-oauth2/'
+
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/files/my_files/'
 SOCIALACCOUNT_LOGIN_REDIRECT_URL = '/files/my_files/'
+
+
+SOCIAL_AUTH_PIPELINE = (
+    'social_core.pipeline.social_auth.social_user',
+    'social_core.pipeline.social_auth.associate_by_email',
+    'social_core.pipeline.social_auth.load_extra_data',
+    'social_core.pipeline.user.user_details',
+    # Можете добавить свои дополнительные шаги, если нужно
+)
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
