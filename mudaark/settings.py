@@ -59,8 +59,6 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'social_django.context_processors.backends',
-                'social_django.context_processors.login_redirect',
             ],
         },
     },
@@ -118,9 +116,6 @@ AUTHENTICATION_BACKENDS = (
 )
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com'
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
-
-LOGIN_URL = 'accounts:login'
-LOGIN_REDIRECT_URL = '/'
 
 # Разрешить аутентификацию без использования пароля
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile']
