@@ -316,7 +316,7 @@ class GoogleLoginRedirectAPI(APIView):
                 login(request, user)
 
                 refresh = RefreshToken.for_user(user)
-                response = redirect('/files/my_files/')
+                response = redirect('/accounts/register/')
                 response.set_cookie(key='access_token', value=str(refresh.access_token), httponly=True)
                 response.set_cookie(key='refresh_token', value=str(refresh), httponly=True)
 

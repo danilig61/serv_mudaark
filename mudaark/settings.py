@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-afe7j%5h*(iph75synbd=_xjx#8ow2_c1%1mbt4@zww%o#@gft'
 DEBUG = True
 
-ALLOWED_HOSTS = ['mu.daark-team.ru', '94.130.54.172']
+ALLOWED_HOSTS = ['mu.daark-team.ru', '94.130.54.172', 'localhost']
 CSRF_TRUSTED_ORIGINS = ['https://mu.daark-team.ru']
 BASE_BACKEND_URL = 'https://mu.daark-team.ru'
 CORS_ALLOW_ALL_ORIGINS = True
@@ -118,7 +118,7 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
 SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'https://mu.daark-team.ru/social-auth/complete/google-oauth2/'
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile']
 SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = ['first_name', 'last_name']
-LOGIN_REDIRECT_URL = '/files/my_files/'
+LOGIN_REDIRECT_URL = '/accounts/register/'
 SOCIAL_AUTH_LOGIN_ERROR_URL = '/login/'
 SOCIAL_AUTH_GOOGLE_OAUTH2_BACKEND_NAME = "google-oauth2"
 
