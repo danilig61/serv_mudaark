@@ -293,7 +293,7 @@ class GoogleLoginAPI(APIView):
         google_auth_url = (
             "https://accounts.google.com/o/oauth2/auth?"
             "client_id=1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com"
-            "&redirect_uri=https://mu.daark-team.ru/accounts/google/callback/"
+            "&redirect_uri=https://mu.daark-team.ru/social-auth/complete/google-oauth2/"
             "&scope=email"
             "&response_type=code"
         )
@@ -301,12 +301,9 @@ class GoogleLoginAPI(APIView):
 
 
 class GoogleLoginRedirectAPI(APIView):
-    """
-    Handles Google OAuth callback and logs in the user.
-    """
-
-    @psa('social:complete')
+    @psa('social:complete', backend='google-oauth2')
     def get(self, request, *args, **kwargs):
+        print("Callback params:", request.GET)  # Логируем параметры
         if 'code' not in request.GET:
             return Response({'error': 'Authorization code not found'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -315,7 +312,6 @@ class GoogleLoginRedirectAPI(APIView):
             if user:
                 login(request, user)
                 refresh = RefreshToken.for_user(user)
-
                 return Response({
                     'message': 'Login successful',
                     'access_token': str(refresh.access_token),
@@ -323,6 +319,7 @@ class GoogleLoginRedirectAPI(APIView):
                 }, status=status.HTTP_200_OK)
             return Response({'error': 'Failed to login via Google'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            print("Error:", e)  # Логируем ошибки
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
