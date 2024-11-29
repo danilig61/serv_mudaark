@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import UserViewSet, LoginAPIView, LogoutAPIView, RegisterAPIView, VerifyEmailAPIView, SetPasswordAPIView, \
-    MainAPIView, ResendVerificationCodeAPIView, GoogleLoginAPI
+    MainAPIView, ResendVerificationCodeAPIView, GoogleLoginAPI, GoogleLoginRedirectAPI
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -17,5 +17,6 @@ urlpatterns = [
     path('set_password/', SetPasswordAPIView.as_view(), name='set_password'),
     path('main/', MainAPIView.as_view(), name='main'),
     path('google/login/', GoogleLoginAPI.as_view(), name='google_login'),
+    path('social-auth/complete/google-oauth2/', GoogleLoginRedirectAPI.as_view(), name='complete'),
     path('resend-verification-code/', ResendVerificationCodeAPIView.as_view(), name='resend-verification-code'),
 ]
