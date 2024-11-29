@@ -121,7 +121,7 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
 SOCIAL_AUTH_YANDEX_OAUTH2_KEY = '81e338006fc040c782f04a59429ef02e'
 SOCIAL_AUTH_YANDEX_OAUTH2_SECRET = 'e952f20146314a6bb4cb966a7834c173'
 
-SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'https://mu.daark-team.ru/auth/complete/google-oauth2/'
+SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'http://localhost:3000/auth/complete/google-oauth2/'
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
