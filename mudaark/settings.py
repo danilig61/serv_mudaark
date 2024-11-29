@@ -108,7 +108,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # GOOGLE_OAUTH2_CLIENT_SECRET = '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'
 # GOOGLE_OAUTH2_PROJECT_ID = 'axiomatic-lamp-442912-n9'
 #
-SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'https://mu.daark-team.ru/social-auth/complete/google-oauth2/'
 
 AUTHENTICATION_BACKENDS = (
     'social_core.backends.google.GoogleOAuth2',
@@ -116,8 +115,7 @@ AUTHENTICATION_BACKENDS = (
 )
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com'
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
-
-# Разрешить аутентификацию без использования пароля
+SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'https://mu.daark-team.ru/social-auth/complete/google-oauth2/'
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile']
 SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = ['first_name', 'last_name']
 LOGIN_REDIRECT_URL = '/files/my_files/'
