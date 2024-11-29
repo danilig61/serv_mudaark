@@ -284,55 +284,36 @@ class MainAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class GoogleLoginAPI(APIView):
-    def get(self, request):
-        logger.info("Starting GoogleLoginAPI get method")
-        google_auth_url = (
-            "https://accounts.google.com/o/oauth2/auth?"
-            "client_id=1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com"
-            "&redirect_uri=https://mu.daark-team.ru/social-auth/complete/google-oauth2/"
-            "&scope=email"
-            "&response_type=code"
-        )
-        logger.info(f"Redirecting to Google auth URL: {google_auth_url}")
-        return redirect(google_auth_url)
-
-
 class GoogleLoginRedirectAPI(APIView):
     @psa('social:complete')
     def get(self, request, *args, **kwargs):
+        logger.info("GoogleLoginRedirectAPI called")
+        logger.info(f"Query params: {request.GET}")
+
         if 'code' not in request.GET:
+            logger.error("Authorization code not found")
             return Response({'error': 'Authorization code not found'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            logger.info("Attempting to authenticate user")
             user = request.backend.do_auth(request.GET.get('code'))
             if user:
-                # Выполняем вход пользователя
+                logger.info(f"User authenticated: {user.username}")
                 login(request, user)
 
-                # Генерируем токены (если нужно)
                 refresh = RefreshToken.for_user(user)
-
-                # Перенаправляем на нужный URL
                 response = redirect('/files/my_files/')
-
-                # Устанавливаем токены в куки (если нужно)
-                response.set_cookie(
-                    key='access_token',
-                    value=str(refresh.access_token),
-                    httponly=True
-                )
-                response.set_cookie(
-                    key='refresh_token',
-                    value=str(refresh),
-                    httponly=True
-                )
+                response.set_cookie(key='access_token', value=str(refresh.access_token), httponly=True)
+                response.set_cookie(key='refresh_token', value=str(refresh), httponly=True)
 
                 return response
             else:
+                logger.error("Failed to authenticate user")
                 return Response({'error': 'Failed to authenticate user'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            logger.error(f"Error during authentication: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class ResendVerificationCodeAPIView(APIView):
