@@ -284,6 +284,20 @@ class MainAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class GoogleLoginAPI(APIView):
+    def get(self, request):
+        logger.info("Starting GoogleLoginAPI get method")
+        google_auth_url = (
+            "https://accounts.google.com/o/oauth2/auth?"
+            "client_id=1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com"
+            "&redirect_uri=https://mu.daark-team.ru/social-auth/complete/google-oauth2/"
+            "&scope=email"
+            "&response_type=code"
+        )
+        logger.info(f"Redirecting to Google auth URL: {google_auth_url}")
+        return redirect(google_auth_url)
+
+
 class GoogleLoginRedirectAPI(APIView):
     @psa('social:complete')
     def get(self, request, *args, **kwargs):
@@ -313,7 +327,6 @@ class GoogleLoginRedirectAPI(APIView):
         except Exception as e:
             logger.error(f"Error during authentication: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 class ResendVerificationCodeAPIView(APIView):
