@@ -301,7 +301,7 @@ class GoogleLoginAPI(APIView):
 
 
 class GoogleLoginRedirectAPI(APIView):
-    @psa('social:complete', backend='google-oauth2')
+    @psa('social:complete')
     def get(self, request, *args, **kwargs):
         print("Callback params:", request.GET)  # Логируем параметры
         if 'code' not in request.GET:
