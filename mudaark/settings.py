@@ -121,6 +121,7 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile']
 SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = ['first_name', 'last_name']
 LOGIN_REDIRECT_URL = '/files/my_files/'
+SOCIAL_AUTH_GOOGLE_OAUTH2_BACKEND_NAME = "google-oauth2"
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
