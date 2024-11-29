@@ -288,7 +288,7 @@ class GoogleLoginRedirectAPI(APIView):
     @psa('social:complete')
     def get(self, request, *args, **kwargs):
         logger.info("GoogleLoginRedirectAPI called")
-        logger.info(f"Query params: {request.GET}")
+        logger.info(f"params: {request.GET}")
 
         if 'code' not in request.GET:
             logger.error("Authorization code not found")
