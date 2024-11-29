@@ -290,7 +290,7 @@ class GoogleLoginAPI(APIView):
     """
 
     def get(self, request):
-        return redirect('/auth/google/')
+        return redirect('/google/login')
 
 
 class GoogleLoginRedirectAPI(APIView):
