@@ -290,7 +290,14 @@ class GoogleLoginAPI(APIView):
     """
 
     def get(self, request):
-        return redirect('/google/login')
+        google_auth_url = (
+            "https://accounts.google.com/o/oauth2/auth?"
+            "client_id=1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com"
+            "&redirect_uri=https://mu.daark-team.ru/accounts/google/callback/"
+            "&scope=email"
+            "&response_type=code"
+        )
+        return redirect(google_auth_url)
 
 
 class GoogleLoginRedirectAPI(APIView):
@@ -307,7 +314,6 @@ class GoogleLoginRedirectAPI(APIView):
             user = request.backend.do_auth(request.GET.get('code'))
             if user:
                 login(request, user)
-                # Генерация JWT токена (пример с SimpleJWT)
                 refresh = RefreshToken.for_user(user)
 
                 return Response({
