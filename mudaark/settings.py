@@ -8,11 +8,11 @@ SECRET_KEY = 'django-insecure-afe7j%5h*(iph75synbd=_xjx#8ow2_c1%1mbt4@zww%o#@gft
 DEBUG = True
 
 ALLOWED_HOSTS = ['mu.daark-team.ru', '94.130.54.172', 'localhost']
-CSRF_TRUSTED_ORIGINS = ['https://mu.daark-team.ru']
-BASE_BACKEND_URL = 'https://mu.daark-team.ru'
+CSRF_TRUSTED_ORIGINS = ['https://mu.daark-team.ru', 'http://localhost:3000']
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ORIGIN_WHITELIST = [
     'https://mu.daark-team.ru',
+    'http://localhost:3000'
 ]
 
 INSTALLED_APPS = [
