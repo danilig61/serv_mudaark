@@ -5,10 +5,13 @@ from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.parsers import FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, serializers
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework.settings import api_settings
 from rest_framework_simplejwt.tokens import RefreshToken
+from social_django.utils import psa
 from social_django.utils import load_backend, load_strategy
 
 from .serializers import UserSerializer, LoginSerializer, SetPasswordSerializer, VerifyEmailSerializer, \
@@ -17,8 +20,8 @@ from .models import UserProfile
 from .tasks import send_verification_email
 from rest_framework.views import APIView
 from rest_framework.response import Response
-import logging
-import requests
+from rest_framework import status
+from django.shortcuts import redirect
 from django.contrib.auth import login
 
 logger = logging.getLogger(__name__)
@@ -290,7 +293,6 @@ class SocialLoginAPIView(APIView):
         logger.info("Starting SocialLoginAPIView post method")
         provider = request.data.get("provider")
         access_token = request.data.get("access_token")
-
         if not provider or not access_token:
             return Response({
                 "status_code": status.HTTP_400_BAD_REQUEST,
@@ -298,22 +300,9 @@ class SocialLoginAPIView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Загружаем стратегию и бэкенд для выбранного провайдера (Google или Yandex)
             strategy = load_strategy(request)
             backend = load_backend(strategy, provider, redirect_uri=None)
-
-            # Проверка на Google или Yandex
-            if provider == 'google':
-                user = self._authenticate_with_google(access_token)
-            elif provider == 'yandex':
-                user = self._authenticate_with_yandex(access_token)
-            else:
-                return Response({
-                    "status_code": status.HTTP_400_BAD_REQUEST,
-                    "error": "Unsupported provider"
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            # Если пользователь успешно авторизован, создаем JWT токены и логиним пользователя
+            user = backend.do_auth(access_token)
             if user:
                 login(request, user)
                 refresh = RefreshToken.for_user(user)
@@ -334,76 +323,6 @@ class SocialLoginAPIView(APIView):
                 "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                 "error": str(e),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    def _authenticate_with_google(self, access_token):
-        # Получаем данные пользователя из Google
-        user_info = self._get_google_user_data(access_token)
-        if user_info:
-            # Здесь логика для получения или создания пользователя на основе данных от Google
-            # Например, создаем пользователя или находим существующего
-            user = self._get_or_create_user_from_google(user_info)
-            return user
-        return None
-
-    def _authenticate_with_yandex(self, access_token):
-        # Получаем данные пользователя из Yandex
-        user_info = self._get_yandex_user_data(access_token)
-        if user_info:
-            # Здесь логика для получения или создания пользователя на основе данных от Yandex
-            # Например, создаем пользователя или находим существующего
-            user = self._get_or_create_user_from_yandex(user_info)
-            return user
-        return None
-
-    def _get_google_user_data(self, access_token):
-        try:
-            headers = {'Authorization': f'Bearer {access_token}'}
-            response = requests.get('https://www.googleapis.com/oauth2/v3/userinfo', headers=headers)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                logger.error(f"Failed to fetch Google user data: {response.text}")
-        except Exception as e:
-            logger.error(f"Error getting Google user data: {e}")
-        return None
-
-    def _get_yandex_user_data(self, access_token):
-        try:
-            headers = {'Authorization': f'OAuth {access_token}'}
-            response = requests.get('https://login.yandex.ru/info', headers=headers)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                logger.error(f"Failed to fetch Yandex user data: {response.text}")
-        except Exception as e:
-            logger.error(f"Error getting Yandex user data: {e}")
-        return None
-
-    def _get_or_create_user_from_google(self, user_info):
-        # Логика для поиска или создания пользователя на основе данных от Google
-        # Например, создаем пользователя, если его нет в базе
-        user, created = User.objects.get_or_create(
-            username=user_info['email'],  # Или любой другой параметр для идентификации
-            defaults={
-                'first_name': user_info.get('given_name', ''),
-                'last_name': user_info.get('family_name', ''),
-                'email': user_info.get('email', ''),
-            }
-        )
-        return user
-
-    def _get_or_create_user_from_yandex(self, user_info):
-        # Логика для поиска или создания пользователя на основе данных от Yandex
-        # Например, создаем пользователя, если его нет в базе
-        user, created = User.objects.get_or_create(
-            username=user_info['login'],  # Или любой другой параметр для идентификации
-            defaults={
-                'first_name': user_info.get('first_name', ''),
-                'last_name': user_info.get('last_name', ''),
-                'email': user_info.get('default_email', ''),
-            }
-        )
-        return user
 
 
 class ResendVerificationCodeAPIView(APIView):
