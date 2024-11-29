@@ -1,8 +1,5 @@
-import jwt
-from attrs import define
 from django.db import models
 from django.contrib.auth.models import User
-from typing import Dict
 
 
 class UserProfile(models.Model):
