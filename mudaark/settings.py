@@ -121,9 +121,6 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
 SOCIAL_AUTH_YANDEX_OAUTH2_KEY = '81e338006fc040c782f04a59429ef02e'
 SOCIAL_AUTH_YANDEX_OAUTH2_SECRET = 'e952f20146314a6bb4cb966a7834c173'
 
-LOGIN_URL = 'login'  # Путь к представлению для логина
-LOGIN_REDIRECT_URL = '/files/my-files/'
-LOGIN_ERROR_URL = '/login/'
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
