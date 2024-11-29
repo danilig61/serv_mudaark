@@ -11,6 +11,9 @@ ALLOWED_HOSTS = ['mu.daark-team.ru', '94.130.54.172']
 CSRF_TRUSTED_ORIGINS = ['https://mu.daark-team.ru']
 BASE_BACKEND_URL = 'https://mu.daark-team.ru'
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ORIGIN_WHITELIST = [
+    'https://mu.daark-team.ru',
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -30,8 +33,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -103,20 +106,25 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-GOOGLE_OAUTH2_CLIENT_ID = '1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com'
-GOOGLE_OAUTH2_CLIENT_SECRET = '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'
-GOOGLE_OAUTH2_PROJECT_ID = 'axiomatic-lamp-442912-n9'
-
-SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'https://mu.daark-team.ru/accounts/google/callback/'
+# GOOGLE_OAUTH2_CLIENT_ID = '1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com'
+# GOOGLE_OAUTH2_CLIENT_SECRET = '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'
+# GOOGLE_OAUTH2_PROJECT_ID = 'axiomatic-lamp-442912-n9'
+#
+SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'https://mu.daark-team.ru/accounts/auth/google/callback/'
 
 AUTHENTICATION_BACKENDS = (
     'social_core.backends.google.GoogleOAuth2',
     'django.contrib.auth.backends.ModelBackend',
 )
-# SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com'
-# SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
-#
-# SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'https://mu.daark-team.ru/accounts/google/callback/'
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com'
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
+
+LOGIN_URL = 'accounts:login'
+LOGIN_REDIRECT_URL = '/'
+
+# Разрешить аутентификацию без использования пароля
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile']
+SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = ['first_name', 'last_name']
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -181,7 +189,6 @@ REST_FRAMEWORK = {
         'rest_framework.metadata.SimpleMetadata',
     )
 }
-SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = ['first_name', 'last_name', 'email']
 
 CORS_ALLOW_HEADERS = [
     'content-type',

@@ -18,8 +18,8 @@ urlpatterns = [
     path('set_password/', SetPasswordAPIView.as_view(), name='set_password'),
     path('main/', MainAPIView.as_view(), name='main'),
     path('auth/', include('social_django.urls', namespace='social')),
-    path('google/login/', GoogleLoginRedirectAPI.as_view(), name='google-login'),
-    path('google/callback/', GoogleLoginAPI.as_view(), name='google-callback'),
+    path('auth/google/', GoogleLoginAPI.as_view(), name='google_login'),
+    path('auth/google/callback/', GoogleLoginRedirectAPI.as_view(), name='google_callback'),
     path('resend-verification-code/', ResendVerificationCodeAPIView.as_view(), name='resend-verification-code'),
 
 ]
