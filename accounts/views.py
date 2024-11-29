@@ -301,18 +301,22 @@ class GoogleLoginAPI(APIView):
 class GoogleLoginRedirectAPI(APIView):
     @psa('social:complete')
     def get(self, request, *args, **kwargs):
-        logger.info("Starting GoogleLoginRedirectAPI get method")
-        logger.info(f"Callback params: {request.GET}")  # Логируем параметры
         if 'code' not in request.GET:
-            logger.error("Authorization code not found")
             return Response({'error': 'Authorization code not found'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             user = request.backend.do_auth(request.GET.get('code'))
             if user:
+                # Выполняем вход пользователя
                 login(request, user)
+
+                # Генерируем токены (если нужно)
                 refresh = RefreshToken.for_user(user)
+
+                # Перенаправляем на нужный URL
                 response = redirect('/files/my_files/')
+
+                # Устанавливаем токены в куки (если нужно)
                 response.set_cookie(
                     key='access_token',
                     value=str(refresh.access_token),
@@ -323,12 +327,11 @@ class GoogleLoginRedirectAPI(APIView):
                     value=str(refresh),
                     httponly=True
                 )
-                logger.info(f"User {user.username} logged in successfully")
+
                 return response
-            logger.error("Failed to login via Google")
-            return Response({'error': 'Failed to login via Google'}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({'error': 'Failed to authenticate user'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(f"Error during Google login: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
