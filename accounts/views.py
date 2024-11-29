@@ -9,8 +9,10 @@ from rest_framework.parsers import FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status, viewsets, serializers
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework.settings import api_settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from social_django.utils import psa
+from social_django.utils import load_backend, load_strategy
 
 from .serializers import UserSerializer, LoginSerializer, SetPasswordSerializer, VerifyEmailSerializer, \
     RegisterSerializer, ResendVerificationCodeSerializer
@@ -284,49 +286,43 @@ class MainAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class GoogleLoginAPI(APIView):
-    def get(self, request):
-        logger.info("Starting GoogleLoginAPI get method")
-        google_auth_url = (
-            "https://accounts.google.com/o/oauth2/auth?"
-            "client_id=1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com"
-            "&redirect_uri=https://mu.daark-team.ru/social-auth/complete/google-oauth2/"
-            "&scope=email"
-            "&response_type=code"
-        )
-        logger.info(f"Redirecting to Google auth URL: {google_auth_url}")
-        return redirect(google_auth_url)
+class SocialLoginAPIView(APIView):
+    permission_classes = [AllowAny]
 
-
-class GoogleLoginRedirectAPI(APIView):
-    @psa('social:complete')
-    def get(self, request, *args, **kwargs):
-        logger.info("GoogleLoginRedirectAPI called")
-        logger.info(f"params: {request.GET}")
-
-        if 'code' not in request.GET:
-            logger.error("Authorization code not found")
-            return Response({'error': 'Authorization code not found'}, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request, *args, **kwargs):
+        logger.info("Starting SocialLoginAPIView post method")
+        provider = request.data.get("provider")
+        access_token = request.data.get("access_token")
+        if not provider or not access_token:
+            return Response({
+                "status_code": status.HTTP_400_BAD_REQUEST,
+                "error": "Provider and access token are required"
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            logger.info("Attempting to authenticate user")
-            user = request.backend.do_auth(request.GET.get('code'))
+            strategy = load_strategy(request)
+            backend = load_backend(strategy, provider, redirect_uri=None)
+            user = backend.do_auth(access_token)
             if user:
-                logger.info(f"User authenticated: {user.username}")
                 login(request, user)
-
                 refresh = RefreshToken.for_user(user)
-                response = redirect('/accounts/register/')
-                response.set_cookie(key='access_token', value=str(refresh.access_token), httponly=True)
-                response.set_cookie(key='refresh_token', value=str(refresh), httponly=True)
-
-                return response
+                return Response({
+                    "status_code": status.HTTP_200_OK,
+                    "message": "Login successful",
+                    "refresh": str(refresh),
+                    "access": str(refresh.access_token),
+                }, status=status.HTTP_200_OK)
             else:
-                logger.error("Failed to authenticate user")
-                return Response({'error': 'Failed to authenticate user'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({
+                    "status_code": status.HTTP_400_BAD_REQUEST,
+                    "error": "Invalid access token or user not found",
+                }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(f"Error during authentication: {e}")
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"Error during social login: {e}")
+            return Response({
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "error": str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ResendVerificationCodeAPIView(APIView):

@@ -110,17 +110,21 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 #
 
 AUTHENTICATION_BACKENDS = (
-    'social_core.backends.google.GoogleOAuth2',
-    'django.contrib.auth.backends.ModelBackend',
+    'social_core.backends.google.GoogleOAuth2',  # Google OAuth2
+    'social_core.backends.yandex.YandexOAuth2',  # Yandex OAuth2
+    'django.contrib.auth.backends.ModelBackend',  # Стандартная аутентификация
 )
+
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '1075420085911-ke6khrff63rec5jclbbkc1ms6pki31n4.apps.googleusercontent.com'
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
-SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'https://mu.daark-team.ru/social-auth/complete/google-oauth2/'
-SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile']
-SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = ['first_name', 'last_name']
-LOGIN_REDIRECT_URL = '/accounts/register/'
-SOCIAL_AUTH_LOGIN_ERROR_URL = '/login/'
-SOCIAL_AUTH_GOOGLE_OAUTH2_BACKEND_NAME = "google-oauth2"
+
+SOCIAL_AUTH_YANDEX_OAUTH2_KEY = '81e338006fc040c782f04a59429ef02e'
+SOCIAL_AUTH_YANDEX_OAUTH2_SECRET = 'e952f20146314a6bb4cb966a7834c173'
+
+LOGIN_URL = 'login'  # Путь к представлению для логина
+LOGIN_REDIRECT_URL = '/files/my-files/'
+LOGIN_ERROR_URL = '/login/'
+
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
