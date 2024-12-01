@@ -289,10 +289,11 @@ class MainAPIView(APIView):
 class SocialLoginAPIView(APIView):
     permission_classes = [AllowAny]
 
-    def post(self, request, *args, **kwargs):
-        logger.info("Starting SocialLoginAPIView post method")
-        provider = request.data.get("provider")
-        access_token = request.data.get("access_token")
+    def get(self, request, *args, **kwargs):
+        """Обработка перенаправления после успешной OAuth2-авторизации."""
+        provider = request.GET.get("provider")
+        access_token = request.GET.get("access_token")
+
         if not provider or not access_token:
             return Response({
                 "status_code": status.HTTP_400_BAD_REQUEST,
@@ -303,15 +304,11 @@ class SocialLoginAPIView(APIView):
             strategy = load_strategy(request)
             backend = load_backend(strategy, provider, redirect_uri=None)
             user = backend.do_auth(access_token)
+
             if user:
                 login(request, user)
                 refresh = RefreshToken.for_user(user)
-                return Response({
-                    "status_code": status.HTTP_200_OK,
-                    "message": "Login successful",
-                    "refresh": str(refresh),
-                    "access": str(refresh.access_token),
-                }, status=status.HTTP_200_OK)
+                return redirect(f"https://your-frontend-url.com/social-callback?access={refresh.access_token}&refresh={refresh}")
             else:
                 return Response({
                     "status_code": status.HTTP_400_BAD_REQUEST,
