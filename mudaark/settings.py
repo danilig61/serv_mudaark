@@ -120,7 +120,7 @@ SOCIAL_AUTH_YANDEX_OAUTH2_SECRET = 'e952f20146314a6bb4cb966a7834c173'
 
 SOCIAL_AUTH_YANDEX_OAUTH2_REDIRECT_URI = 'http://mu.daark-team.ru/auth/complete/yandex-oauth2/'
 SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'http://mu.daark-team.ru/auth/complete/google-oauth2/'
-
+LOGIN_REDIRECT_URL = "/accounts/social-login/"
 
 SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',

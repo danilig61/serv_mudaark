@@ -290,7 +290,6 @@ class SocialLoginAPIView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, *args, **kwargs):
-        """Обработка перенаправления после успешной OAuth2-авторизации."""
         provider = request.GET.get("provider")
         access_token = request.GET.get("access_token")
 
@@ -308,7 +307,10 @@ class SocialLoginAPIView(APIView):
             if user:
                 login(request, user)
                 refresh = RefreshToken.for_user(user)
-                return redirect(f"https://your-frontend-url.com/social-callback?access={refresh.access_token}&refresh={refresh}")
+                return Response({
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                }, status=status.HTTP_200_OK)
             else:
                 return Response({
                     "status_code": status.HTTP_400_BAD_REQUEST,
@@ -320,6 +322,7 @@ class SocialLoginAPIView(APIView):
                 "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                 "error": str(e),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class ResendVerificationCodeAPIView(APIView):
