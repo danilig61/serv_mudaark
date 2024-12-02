@@ -15,7 +15,7 @@ from social_django.utils import psa
 from social_django.utils import load_backend, load_strategy
 
 from .serializers import UserSerializer, LoginSerializer, SetPasswordSerializer, VerifyEmailSerializer, \
-    RegisterSerializer, ResendVerificationCodeSerializer
+    RegisterSerializer, ResendVerificationCodeSerializer, ForgotPasswordSerializer
 from .models import UserProfile
 from .tasks import send_verification_email
 from rest_framework.views import APIView
@@ -364,3 +364,150 @@ class ResendVerificationCodeAPIView(APIView):
             'status_code': status.HTTP_400_BAD_REQUEST,
             'errors': serializer.errors,
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ForgotPasswordAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        operation_description="Request password reset by email",
+        request_body=ResendVerificationCodeSerializer,
+        responses={
+            200: "Verification email sent",
+            400: "User not found or invalid data",
+            500: "Internal Server Error",
+        },
+    )
+    def post(self, request):
+        logger.info("Starting ForgotPasswordAPIView post method")
+        serializer = ResendVerificationCodeSerializer(data=request.data)
+
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            try:
+                user_profile = UserProfile.objects.get(user__email=email)
+                confirmation_code = str(random.randint(100000, 999999))  # Генерация 6-значного кода
+                user_profile.verification_code = confirmation_code
+                user_profile.save()
+
+                # Отправка кода подтверждения на email
+                send_verification_email.delay(email, confirmation_code)
+                logger.info(f"Verification code sent to {email}")
+                return Response({
+                    'status_code': status.HTTP_200_OK,
+                    'message': 'Verification email sent',
+                }, status=status.HTTP_200_OK)
+
+            except UserProfile.DoesNotExist:
+                logger.warning(f"User with email {email} not found")
+                return Response({
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'User not found',
+                }, status=status.HTTP_400_BAD_REQUEST)
+        logger.error(f"Validation errors: {serializer.errors}")
+        return Response({
+            'status_code': status.HTTP_400_BAD_REQUEST,
+            'errors': serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VerifyForgotPasswordCodeAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        operation_description="Verify the reset code sent to user's email",
+        request_body=VerifyEmailSerializer,
+        responses={
+            200: "Code verified successfully",
+            400: "Invalid confirmation code",
+            500: "Internal Server Error",
+        },
+    )
+    def post(self, request):
+        logger.info("Starting VerifyForgotPasswordCodeAPIView post method")
+        serializer = VerifyEmailSerializer(data=request.data)
+
+        if serializer.is_valid():
+            code = serializer.validated_data['code']
+            try:
+                user_profile = UserProfile.objects.get(verification_code=code)
+                user = user_profile.user
+                logger.info(f"Code verified successfully for user: {user.email}")
+                return Response({
+                    'status_code': status.HTTP_200_OK,
+                    'message': 'Code verified successfully. You can now reset your password.',
+                    'user_id': user.id,  # Возвращаем user_id для дальнейшей привязки при смене пароля
+                }, status=status.HTTP_200_OK)
+            except UserProfile.DoesNotExist:
+                logger.warning(f"Invalid confirmation code: {code}")
+                return Response({
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'Invalid confirmation code',
+                }, status=status.HTTP_400_BAD_REQUEST)
+        logger.error(f"Validation errors: {serializer.errors}")
+        return Response({
+            'status_code': status.HTTP_400_BAD_REQUEST,
+            'errors': serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ResetPasswordAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        operation_description="Set a new password for the user",
+        request_body=SetPasswordSerializer,
+        responses={
+            200: "Password reset successfully",
+            400: "Invalid data or code verification failed",
+            500: "Internal Server Error",
+        },
+    )
+    def post(self, request):
+        logger.info("Starting ResetPasswordAPIView post method")
+        serializer = SetPasswordSerializer(data=request.data)
+
+        if serializer.is_valid():
+            password = serializer.validated_data['password']
+            confirm_password = serializer.validated_data['confirm_password']
+            user_id = serializer.validated_data.get('user_id')  # Получаем user_id
+
+            # Проверка совпадения паролей
+            if password != confirm_password:
+                return Response({
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'Passwords do not match',
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            if user_id:
+                try:
+                    user = User.objects.get(id=user_id)
+
+                    # Сброс пароля
+                    user.set_password(password)
+                    user.save()
+
+                    # Очистка кода подтверждения, если пароль изменен
+                    user_profile = user.profile
+                    user_profile.verification_code = None
+                    user_profile.save()
+
+                    logger.info(f"Password reset successfully for user: {user.email}")
+                    return Response({
+                        'status_code': status.HTTP_200_OK,
+                        'message': 'Password reset successfully',
+                    }, status=status.HTTP_200_OK)
+
+                except User.DoesNotExist:
+                    logger.warning(f"User with ID {user_id} not found")
+                    return Response({
+                        'status_code': status.HTTP_400_BAD_REQUEST,
+                        'error': 'User not found',
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+        logger.error(f"Validation errors: {serializer.errors}")
+        return Response({
+            'status_code': status.HTTP_400_BAD_REQUEST,
+            'errors': serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
+
