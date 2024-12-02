@@ -10,7 +10,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from social_django.utils import load_backend, load_strategy
 
 from .serializers import UserSerializer, LoginSerializer, SetPasswordSerializer, VerifyEmailSerializer, \
-    RegisterSerializer, ResendVerificationCodeSerializer
+    RegisterSerializer, ResendVerificationCodeSerializer, ResetPasswordSerializer
 from .models import UserProfile
 from .tasks import send_verification_email
 from rest_framework.views import APIView
@@ -449,7 +449,7 @@ class ResetPasswordAPIView(APIView):
 
     @swagger_auto_schema(
         operation_description="Set a new password for the user",
-        request_body=SetPasswordSerializer,
+        request_body=ResetPasswordSerializer,
         responses={
             200: "Password reset successfully",
             400: "Invalid data or code verification failed",
@@ -458,7 +458,7 @@ class ResetPasswordAPIView(APIView):
     )
     def post(self, request):
         logger.info("Starting ResetPasswordAPIView post method")
-        serializer = SetPasswordSerializer(data=request.data)
+        serializer = ResetPasswordSerializer(data=request.data)
 
         if serializer.is_valid():
             password = serializer.validated_data['password']
