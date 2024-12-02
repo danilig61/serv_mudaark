@@ -50,3 +50,13 @@ class SetPasswordSerializer(serializers.Serializer):
 class ResendVerificationCodeSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
+
+class ResetPasswordSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(required=True)
+    password = serializers.CharField(write_only=True, required=True)
+    confirm_password = serializers.CharField(write_only=True, required=True)
+
+    def validate(self, data):
+        if data['password'] != data['confirm_password']:
+            raise serializers.ValidationError("Пароли не совпадают.")
+        return data
