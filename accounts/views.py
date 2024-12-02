@@ -480,11 +480,6 @@ class ResetPasswordAPIView(APIView):
                     user.set_password(password)
                     user.save()
 
-                    # Очистка кода подтверждения, если пароль изменен
-                    user_profile = user.profile
-                    user_profile.verification_code = None
-                    user_profile.save()
-
                     logger.info(f"Password reset successfully for user: {user.email}")
                     return Response({
                         'status_code': status.HTTP_200_OK,
