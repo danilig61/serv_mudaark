@@ -1,27 +1,20 @@
 import logging
 import random
-
-from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.parsers import FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework import status, viewsets, serializers
+from rest_framework import status, viewsets
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework.settings import api_settings
 from rest_framework_simplejwt.tokens import RefreshToken
-from social_django.utils import psa
 from social_django.utils import load_backend, load_strategy
 
 from .serializers import UserSerializer, LoginSerializer, SetPasswordSerializer, VerifyEmailSerializer, \
-    RegisterSerializer, ResendVerificationCodeSerializer, ForgotPasswordSerializer
+    RegisterSerializer, ResendVerificationCodeSerializer
 from .models import UserProfile
 from .tasks import send_verification_email
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
-from django.shortcuts import redirect
 from django.contrib.auth import login
 
 logger = logging.getLogger(__name__)

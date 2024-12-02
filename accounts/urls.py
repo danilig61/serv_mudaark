@@ -1,7 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import UserViewSet, LoginAPIView, LogoutAPIView, RegisterAPIView, VerifyEmailAPIView, SetPasswordAPIView, \
-    MainAPIView, ResendVerificationCodeAPIView, SocialLoginAPIView
+    MainAPIView, ResendVerificationCodeAPIView, SocialLoginAPIView, ForgotPasswordAPIView, \
+    VerifyForgotPasswordCodeAPIView, ResetPasswordAPIView
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -18,4 +19,7 @@ urlpatterns = [
     path('main/', MainAPIView.as_view(), name='main'),
     path('social-login/', SocialLoginAPIView.as_view(), name='social-login'),
     path('resend-verification-code/', ResendVerificationCodeAPIView.as_view(), name='resend-verification-code'),
+    path('forgot-password/', ForgotPasswordAPIView.as_view(), name='forgot-password'),
+    path('verify-forgot-password-code/', VerifyForgotPasswordCodeAPIView.as_view(), name='verify-forgot-password-code'),
+    path('reset-password/', ResetPasswordAPIView.as_view(), name='reset-password'),
 ]
