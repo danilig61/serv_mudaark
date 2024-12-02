@@ -78,7 +78,7 @@ class UploadFileAPIView(APIView):
                     name=name,
                     speakers=speakers,
                     language=language,
-                    status='pending',
+                    status='processing',
                 )
                 task = process_file.delay(file_instance.id, file_path, analyze_text)
                 file_instance.task_id = task.id
