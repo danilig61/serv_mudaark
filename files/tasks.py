@@ -46,30 +46,33 @@ def process_file(self, file_id, file_path, analyze_text):
             return
 
         file_extension = os.path.splitext(file_path)[1].lower()
+        temp_audio_path = None
 
-        # Обработка видео и аудио файлов
-        if file_extension in ['.mp4']:
-            clip = mp.VideoFileClip(temp_file_path)
-            total_seconds = int(clip.duration)
-            duration = f"{total_seconds // 60} мин {total_seconds % 60} сек"
-            file_instance.duration = duration
-            file_instance.save()
+        # Унифицированная обработка аудио и видео файлов
+        if file_extension in ['.mp4', '.m4a', '.mp3', '.wav']:
+            if file_extension == '.mp4':
+                # Обработка видео-файлов
+                clip = mp.VideoFileClip(temp_file_path)
+                total_seconds = int(clip.duration)
+                duration = f"{total_seconds // 60} мин {total_seconds % 60} сек"
+                file_instance.duration = duration
+                file_instance.save()
 
-            # Извлечение аудиодорожки в WAV
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_audio_file:
-                temp_audio_path = temp_audio_file.name
-                clip.audio.write_audiofile(temp_audio_path, codec='pcm_s16le')
-        elif file_extension in ['.m4a', '.mp3', '.wav']:
-            audio = AudioSegment.from_file(temp_file_path)
-            total_seconds = len(audio) // 1000
-            duration = f"{total_seconds // 60} мин {total_seconds % 60} сек"
-            file_instance.duration = duration
-            file_instance.save()
-
-            temp_audio_path = temp_file_path  # Аудиофайлы отправляются как есть
+                # Извлечение аудиодорожки
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_audio_file:
+                    temp_audio_path = temp_audio_file.name
+                    clip.audio.write_audiofile(temp_audio_path, codec='pcm_s16le')
+            else:
+                # Обработка аудио-файлов
+                audio = AudioSegment.from_file(temp_file_path)
+                total_seconds = len(audio) // 1000
+                duration = f"{total_seconds // 60} мин {total_seconds % 60} сек"
+                file_instance.duration = duration
+                file_instance.save()
+                temp_audio_path = temp_file_path  # Передаем исходный аудиофайл
 
         # Проверка существования файла перед транскрипцией
-        if not os.path.exists(temp_audio_path):
+        if not temp_audio_path or not os.path.exists(temp_audio_path):
             logger.error(f"Файл для транскрипции не найден: {temp_audio_path}")
             return
 
@@ -89,7 +92,7 @@ def process_file(self, file_id, file_path, analyze_text):
         logger.info(f"Отправка файла {file_path} с MIME-типом: {mime_type}")
         response = requests.post(
             'http://94.130.54.172:8040/transcribe',
-            files={'audio': ('audio.wav', audio_bytes, 'audio/wav')}
+            files={'audio': (os.path.basename(file_path), audio_bytes, mime_type)}
         )
 
         if response.status_code == 200:
@@ -116,7 +119,7 @@ def process_file(self, file_id, file_path, analyze_text):
 
         # Очистка временных файлов
         os.remove(temp_file_path)
-        if file_extension in ['.mp4']:
+        if temp_audio_path and temp_audio_path != temp_file_path:
             os.remove(temp_audio_path)
 
         logger.info(f"Завершение задачи process_file для файла с ID: {file_id}")
