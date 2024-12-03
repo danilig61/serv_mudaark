@@ -6,16 +6,16 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status, viewsets
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken
-
 from .serializers import UserSerializer, LoginSerializer, SetPasswordSerializer, VerifyEmailSerializer, \
     RegisterSerializer, ResendVerificationCodeSerializer, ResetPasswordSerializer
 from .models import UserProfile
 from .tasks import send_verification_email
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from social_django.utils import psa
-from social_core.backends.google import GoogleOAuth2
 import logging
+from google.auth.transport.requests import Request
+from google.oauth2 import id_token
+from django.conf import settings
 
 
 logger = logging.getLogger(__name__)
@@ -283,8 +283,7 @@ class MainAPIView(APIView):
 class SocialLoginAPIView(APIView):
     permission_classes = [AllowAny]
 
-    @psa('social:complete')  # Для того, чтобы инициировать OAuth2 процесс
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         try:
             logger.info("Starting SocialLoginAPIView post method")
 
@@ -299,13 +298,25 @@ class SocialLoginAPIView(APIView):
 
             logger.info("Access token received, verifying with Google")
 
-            # Верификация токена через Google и извлечение пользователя
-            backend = GoogleOAuth2(request)
-            user = backend.do_auth(access_token)
-            if user:
-                logger.info(f"User authenticated: {user.email}")
+            # Пытаемся проверить токен и получить информацию о пользователе
+            try:
+                # Параметры для проверки access_token
+                idinfo = id_token.verify_oauth2_token(
+                    access_token, Request(), settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY
+                )
+                logger.info(f"User info retrieved from Google: {idinfo}")
 
-                # Генерация Refresh и Access токенов для пользователя
+                # Проверяем, существует ли пользователь с этим email
+                user, created = User.objects.get_or_create(email=idinfo['email'])
+
+                # Если пользователя нет, создаем нового
+                if created:
+                    user.first_name = idinfo.get('given_name', '')
+                    user.last_name = idinfo.get('family_name', '')
+                    user.save()
+                    logger.info(f"New user created: {user.email}")
+
+                # Генерируем Refresh и Access токены
                 refresh = RefreshToken.for_user(user)
 
                 logger.info("Tokens generated successfully")
@@ -323,11 +334,12 @@ class SocialLoginAPIView(APIView):
                         "name": user.get_full_name(),
                     },
                 }, status=status.HTTP_200_OK)
-            else:
-                logger.error("Authentication failed with Google")
+
+            except ValueError as e:
+                logger.error(f"Error verifying token: {e}")
                 return Response({
                     'status_code': status.HTTP_400_BAD_REQUEST,
-                    'error': 'Authentication failed',
+                    'error': 'Invalid token',
                 }, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
