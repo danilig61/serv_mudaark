@@ -75,7 +75,7 @@ def process_file(self, file_id, file_path, analyze_text):
 
         # Определение MIME-типа в зависимости от формата
         mime_types = {
-            '.mp4': 'audio/wav',
+            '.mp4': 'audio/wav',  # В случае mp4 отправляем WAV
             '.m4a': 'audio/mp4',
             '.mp3': 'audio/mpeg',
             '.wav': 'audio/wav',
@@ -89,7 +89,7 @@ def process_file(self, file_id, file_path, analyze_text):
         logger.info(f"Отправка файла {file_path} с MIME-типом: {mime_type}")
         response = requests.post(
             'http://94.130.54.172:8040/transcribe',
-            files={'audio': (file_path, audio_bytes, mime_type)}
+            files={'audio': ('audio.wav', audio_bytes, 'audio/wav')}
         )
 
         if response.status_code == 200:
@@ -125,4 +125,3 @@ def process_file(self, file_id, file_path, analyze_text):
         logger.error(f"Ошибка при обработке файла: {e}")
         file_instance.status = 'error'
         file_instance.save()
-
