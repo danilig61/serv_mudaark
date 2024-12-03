@@ -1,4 +1,5 @@
 import os
+import subprocess
 from celery import shared_task
 import requests
 import moviepy.editor as mp
@@ -16,6 +17,29 @@ logger = logging.getLogger(__name__)
 # Указываем путь к ffmpeg и ffprobe
 AudioSegment.converter = which("ffmpeg")
 AudioSegment.ffprobe = which("ffprobe")
+
+
+def validate_file(file_path):
+    """Проверяет файл перед обработкой."""
+    try:
+        # Проверяем, существует ли файл и его размер
+        if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+            logger.error(f"Файл не найден или пуст: {file_path}")
+            return False
+        # Проверяем с помощью ffprobe
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format", "-of", "json", file_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        if result.returncode != 0:
+            logger.error(f"FFprobe не удалось обработать файл: {file_path}. Ошибка: {result.stderr.decode()}")
+            return False
+        return True
+    except Exception as e:
+        logger.error(f"Ошибка при проверке файла: {e}")
+        return False
+
 
 @shared_task(bind=True)
 def process_file(self, file_id, file_path, analyze_text):
@@ -40,9 +64,10 @@ def process_file(self, file_id, file_path, analyze_text):
             )
             temp_file_path = temp_file.name
 
-        # Проверка существования файла перед обработкой
-        if not os.path.exists(temp_file_path):
-            logger.error(f"Временный файл не найден: {temp_file_path}")
+        # Проверка существования и корректности файла
+        if not validate_file(temp_file_path):
+            file_instance.status = 'error'
+            file_instance.save()
             return
 
         file_extension = os.path.splitext(file_path)[1].lower()
@@ -52,7 +77,14 @@ def process_file(self, file_id, file_path, analyze_text):
         if file_extension in ['.mp4', '.m4a', '.mp3', '.wav']:
             if file_extension == '.mp4':
                 # Обработка видео-файлов
-                clip = mp.VideoFileClip(temp_file_path)
+                try:
+                    clip = mp.VideoFileClip(temp_file_path)
+                except OSError as e:
+                    logger.error(f"FFmpeg не смог обработать файл: {temp_file_path}. Ошибка: {e}")
+                    file_instance.status = 'error'
+                    file_instance.save()
+                    return
+
                 total_seconds = int(clip.duration)
                 duration = f"{total_seconds // 60} мин {total_seconds % 60} сек"
                 file_instance.duration = duration
@@ -74,6 +106,8 @@ def process_file(self, file_id, file_path, analyze_text):
         # Проверка существования файла перед транскрипцией
         if not temp_audio_path or not os.path.exists(temp_audio_path):
             logger.error(f"Файл для транскрипции не найден: {temp_audio_path}")
+            file_instance.status = 'error'
+            file_instance.save()
             return
 
         # Определение MIME-типа в зависимости от формата
