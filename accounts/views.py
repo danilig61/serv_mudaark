@@ -1,4 +1,3 @@
-import logging
 import random
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
@@ -7,7 +6,6 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status, viewsets
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken
-from social_django.utils import load_backend, load_strategy
 
 from .serializers import UserSerializer, LoginSerializer, SetPasswordSerializer, VerifyEmailSerializer, \
     RegisterSerializer, ResendVerificationCodeSerializer, ResetPasswordSerializer
@@ -15,7 +13,10 @@ from .models import UserProfile
 from .tasks import send_verification_email
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.contrib.auth import login
+from social_django.utils import psa
+from social_core.backends.google import GoogleOAuth2
+import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -282,49 +283,60 @@ class MainAPIView(APIView):
 class SocialLoginAPIView(APIView):
     permission_classes = [AllowAny]
 
-    def post(self, request, *args, **kwargs):
-        provider = request.data.get("provider")
-        access_token = request.data.get("access_token")
-
-        logger.debug(f"Received provider: {provider}")
-        logger.debug(f"Received access_token: {access_token}")
-
-        if not provider or not access_token:
-            return Response({
-                "status_code": status.HTTP_400_BAD_REQUEST,
-                "error": "Provider and access token are required"
-            }, status=status.HTTP_400_BAD_REQUEST)
-
+    @psa('social:complete')  # Для того, чтобы инициировать OAuth2 процесс
+    def post(self, request):
         try:
-            strategy = load_strategy(request)
-            backend = load_backend(strategy, provider, redirect_uri=None)
-            if backend is None:
-                logger.error(f"Backend for provider {provider} not found")
-                return Response({
-                    "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    "error": f"Backend for provider {provider} not found",
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.info("Starting SocialLoginAPIView post method")
 
+            # Получаем access_token с фронта
+            access_token = request.data.get("access_token")
+            if not access_token:
+                logger.error("Access token is required")
+                return Response({
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'Access token is required',
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            logger.info("Access token received, verifying with Google")
+
+            # Верификация токена через Google и извлечение пользователя
+            backend = GoogleOAuth2(request)
             user = backend.do_auth(access_token)
-
             if user:
-                login(request, user)
+                logger.info(f"User authenticated: {user.email}")
+
+                # Генерация Refresh и Access токенов для пользователя
                 refresh = RefreshToken.for_user(user)
+
+                logger.info("Tokens generated successfully")
+
                 return Response({
-                    "access": str(refresh.access_token),
-                    "refresh": str(refresh),
+                    "status_code": status.HTTP_200_OK,
+                    "message": "Login successful",
+                    "tokens": {
+                        "access": str(refresh.access_token),
+                        "refresh": str(refresh),
+                    },
+                    "user": {
+                        "id": user.id,
+                        "email": user.email,
+                        "name": user.get_full_name(),
+                    },
                 }, status=status.HTTP_200_OK)
             else:
+                logger.error("Authentication failed with Google")
                 return Response({
-                    "status_code": status.HTTP_400_BAD_REQUEST,
-                    "error": "Invalid access token or user not found",
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'Authentication failed',
                 }, status=status.HTTP_400_BAD_REQUEST)
+
         except Exception as e:
-            logger.error(f"Error during social login: {e}")
+            logger.error(f"Internal Server Error: {e}")
             return Response({
-                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                "error": str(e),
+                'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
+                'error': 'Internal Server Error',
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class ResendVerificationCodeAPIView(APIView):
