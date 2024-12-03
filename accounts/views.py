@@ -295,6 +295,13 @@ class SocialLoginAPIView(APIView):
         try:
             strategy = load_strategy(request)
             backend = load_backend(strategy, provider, redirect_uri=None)
+            if backend is None:
+                logger.error(f"Backend for provider {provider} not found")
+                return Response({
+                    "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "error": f"Backend for provider {provider} not found",
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
             user = backend.do_auth(access_token)
 
             if user:
@@ -315,7 +322,6 @@ class SocialLoginAPIView(APIView):
                 "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                 "error": str(e),
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 class ResendVerificationCodeAPIView(APIView):
