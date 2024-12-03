@@ -1,45 +1,22 @@
 import os
-import subprocess
+import tempfile
+import io
 from celery import shared_task
 import requests
-import moviepy.editor as mp
 from .config import minio_client
 from .models import File
 import logging
-import tempfile
-import io
 from django.conf import settings
-from pydub import AudioSegment
-from pydub.utils import which
 
 logger = logging.getLogger(__name__)
 
-# Указываем путь к ffmpeg и ffprobe
-AudioSegment.converter = which("ffmpeg")
-AudioSegment.ffprobe = which("ffprobe")
-
-
-def validate_file(file_path):
-    """Проверяет файл перед обработкой."""
-    try:
-        # Проверяем, существует ли файл и его размер
-        if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
-            logger.error(f"Файл не найден или пуст: {file_path}")
-            return False
-        # Проверяем с помощью ffprobe
-        result = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format", "-of", "json", file_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        if result.returncode != 0:
-            logger.error(f"FFprobe не удалось обработать файл: {file_path}. Ошибка: {result.stderr.decode()}")
-            return False
-        return True
-    except Exception as e:
-        logger.error(f"Ошибка при проверке файла: {e}")
-        return False
-
+# Поддерживаемые MIME-типы для форматов
+SUPPORTED_FORMATS = {
+    '.mp4': 'video/mp4',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.m4a': 'audio/mp4',
+}
 
 @shared_task(bind=True)
 def process_file(self, file_id, file_path, analyze_text):
@@ -50,11 +27,6 @@ def process_file(self, file_id, file_path, analyze_text):
         file_instance.status = 'processing'
         file_instance.save()
 
-        # Проверка существования файла перед началом обработки
-        if not File.objects.filter(id=file_id).exists():
-            logger.info(f"Файл {file_id} был удален. Остановка задачи.")
-            return
-
         # Скачивание файла из MinIO
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             minio_client.fget_object(
@@ -64,80 +36,41 @@ def process_file(self, file_id, file_path, analyze_text):
             )
             temp_file_path = temp_file.name
 
-        # Проверка существования и корректности файла
-        if not validate_file(temp_file_path):
+        # Проверка существования файла
+        if not os.path.exists(temp_file_path):
+            logger.error(f"Временный файл не найден: {temp_file_path}")
             file_instance.status = 'error'
             file_instance.save()
             return
 
+        # Определение MIME-типа по расширению
         file_extension = os.path.splitext(file_path)[1].lower()
-        temp_audio_path = None
+        mime_type = SUPPORTED_FORMATS.get(file_extension)
 
-        # Унифицированная обработка аудио и видео файлов
-        if file_extension in ['.mp4', '.m4a', '.mp3', '.wav']:
-            if file_extension == '.mp4':
-                # Обработка видео-файлов
-                try:
-                    clip = mp.VideoFileClip(temp_file_path)
-                except OSError as e:
-                    logger.error(f"FFmpeg не смог обработать файл: {temp_file_path}. Ошибка: {e}")
-                    file_instance.status = 'error'
-                    file_instance.save()
-                    return
-
-                total_seconds = int(clip.duration)
-                duration = f"{total_seconds // 60} мин {total_seconds % 60} сек"
-                file_instance.duration = duration
-                file_instance.save()
-
-                # Извлечение аудиодорожки
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_audio_file:
-                    temp_audio_path = temp_audio_file.name
-                    clip.audio.write_audiofile(temp_audio_path, codec='pcm_s16le')
-            else:
-                # Обработка аудио-файлов
-                audio = AudioSegment.from_file(temp_file_path)
-                total_seconds = len(audio) // 1000
-                duration = f"{total_seconds // 60} мин {total_seconds % 60} сек"
-                file_instance.duration = duration
-                file_instance.save()
-                temp_audio_path = temp_file_path  # Передаем исходный аудиофайл
-
-        # Проверка существования файла перед транскрипцией
-        if not temp_audio_path or not os.path.exists(temp_audio_path):
-            logger.error(f"Файл для транскрипции не найден: {temp_audio_path}")
+        if not mime_type:
+            logger.error(f"Неподдерживаемый формат файла: {file_extension}")
             file_instance.status = 'error'
             file_instance.save()
             return
 
-        # Определение MIME-типа в зависимости от формата
-        mime_types = {
-            '.mp4': 'audio/wav',  # В случае mp4 отправляем WAV
-            '.m4a': 'audio/mp4',
-            '.mp3': 'audio/mpeg',
-            '.wav': 'audio/wav',
-        }
-        mime_type = mime_types.get(file_extension, 'application/octet-stream')
+        logger.info(f"Отправка файла {file_path} на транскрипцию ({file_extension}).")
 
-        # Отправка на транскрипцию
-        with open(temp_audio_path, 'rb') as audio_file:
-            audio_bytes = io.BytesIO(audio_file.read())
-
-        logger.info(f"Отправка файла {file_path} с MIME-типом: {mime_type}")
-        response = requests.post(
-            'http://94.130.54.172:8040/transcribe',
-            files={'audio': (os.path.basename(file_path), audio_bytes, mime_type)}
-        )
+        # Отправка файла на API для транскрипции
+        with open(temp_file_path, 'rb') as audio_file:
+            response = requests.post(
+                'http://94.130.54.172:8040/transcribe',
+                files={'audio': (os.path.basename(file_path), audio_file, mime_type)}
+            )
 
         if response.status_code == 200:
-            file_instance.status = 'completed'
-            transcription = response.json()
+            transcription = response.text  # API возвращает строку
             logger.info(f"Получена транскрипция: {transcription}")
             file_instance.transcription = transcription
+            file_instance.status = 'completed'
 
             # Анализ текста, если требуется
             if analyze_text:
-                logger.info(f"Отправка транскрипции на анализ: {transcription}")
+                logger.info(f"Отправка транскрипции на анализ.")
                 analysis_response = requests.get(
                     'http://83.149.227.104/process_text',
                     params={'text': transcription}
@@ -146,16 +79,15 @@ def process_file(self, file_id, file_path, analyze_text):
                     file_instance.analysis_result = analysis_response.json()
                 else:
                     logger.error(f"Ошибка при анализе текста: {analysis_response.text}")
-            file_instance.save()
         else:
-            file_instance.status = 'error'
             logger.error(f"Ошибка при транскрипции: {response.text}")
+            file_instance.status = 'error'
 
-        # Очистка временных файлов
+        # Сохранение изменений
+        file_instance.save()
+
+        # Удаление временного файла
         os.remove(temp_file_path)
-        if temp_audio_path and temp_audio_path != temp_file_path:
-            os.remove(temp_audio_path)
-
         logger.info(f"Завершение задачи process_file для файла с ID: {file_id}")
 
     except Exception as e:
