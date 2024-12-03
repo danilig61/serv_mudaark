@@ -17,17 +17,25 @@ SUPPORTED_FORMATS = {
     '.wav': 'audio/wav',
     '.m4a': 'audio/mp4',
 }
+def srt_to_text(srt_content):
+    """Преобразует SRT-субтитры в обычный текст."""
+    lines = srt_content.split("\n")
+    text_lines = []
+    for line in lines:
+        # Пропускаем строки с номером и временными метками
+        if "-->" not in line and not line.strip().isdigit():
+            text_lines.append(line.strip())
+    return " ".join(text_lines).strip()
+
 
 @shared_task(bind=True)
 def process_file(self, file_id, file_path, analyze_text):
     logger.info(f"Начало задачи process_file для файла с ID: {file_id}")
     try:
-        # Получение объекта файла
         file_instance = File.objects.get(id=file_id)
         file_instance.status = 'processing'
         file_instance.save()
 
-        # Скачивание файла из MinIO
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             minio_client.fget_object(
                 settings.AWS_STORAGE_BUCKET_NAME,
@@ -36,14 +44,12 @@ def process_file(self, file_id, file_path, analyze_text):
             )
             temp_file_path = temp_file.name
 
-        # Проверка существования файла
         if not os.path.exists(temp_file_path):
             logger.error(f"Временный файл не найден: {temp_file_path}")
             file_instance.status = 'error'
             file_instance.save()
             return
 
-        # Определение MIME-типа по расширению
         file_extension = os.path.splitext(file_path)[1].lower()
         mime_type = SUPPORTED_FORMATS.get(file_extension)
 
@@ -55,7 +61,6 @@ def process_file(self, file_id, file_path, analyze_text):
 
         logger.info(f"Отправка файла {file_path} на транскрипцию ({file_extension}).")
 
-        # Отправка файла на API для транскрипции
         with open(temp_file_path, 'rb') as audio_file:
             response = requests.post(
                 'http://94.130.54.172:8040/transcribe',
@@ -63,17 +68,17 @@ def process_file(self, file_id, file_path, analyze_text):
             )
 
         if response.status_code == 200:
-            transcription = response.text  # API возвращает строку
-            logger.info(f"Получена транскрипция: {transcription}")
-            file_instance.transcription = transcription
+            srt_transcription = response.text  # Получаем SRT
+            transcription_text = srt_to_text(srt_transcription)  # Преобразуем в текст
+            logger.info(f"Получена транскрипция: {transcription_text}")
+            file_instance.transcription = transcription_text
             file_instance.status = 'completed'
 
-            # Анализ текста, если требуется
             if analyze_text:
                 logger.info(f"Отправка транскрипции на анализ.")
                 analysis_response = requests.get(
                     'http://83.149.227.104/process_text',
-                    params={'text': transcription}
+                    params={'text': transcription_text}
                 )
                 if analysis_response.status_code == 200:
                     file_instance.analysis_result = analysis_response.json()
@@ -83,10 +88,7 @@ def process_file(self, file_id, file_path, analyze_text):
             logger.error(f"Ошибка при транскрипции: {response.text}")
             file_instance.status = 'error'
 
-        # Сохранение изменений
         file_instance.save()
-
-        # Удаление временного файла
         os.remove(temp_file_path)
         logger.info(f"Завершение задачи process_file для файла с ID: {file_id}")
 
@@ -94,3 +96,4 @@ def process_file(self, file_id, file_path, analyze_text):
         logger.error(f"Ошибка при обработке файла: {e}")
         file_instance.status = 'error'
         file_instance.save()
+
