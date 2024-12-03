@@ -282,9 +282,12 @@ class MainAPIView(APIView):
 class SocialLoginAPIView(APIView):
     permission_classes = [AllowAny]
 
-    def get(self, request, *args, **kwargs):
-        provider = request.GET.get("provider")
-        access_token = request.GET.get("access_token")
+    def post(self, request, *args, **kwargs):
+        provider = request.data.get("provider")
+        access_token = request.data.get("access_token")
+
+        logger.debug(f"Received provider: {provider}")
+        logger.debug(f"Received access_token: {access_token}")
 
         if not provider or not access_token:
             return Response({
