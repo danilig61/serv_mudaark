@@ -35,56 +35,48 @@ def process_file(self, file_id, file_path, analyze_text):
             )
             temp_file_path = temp_file.name
 
-        # Проверка формата файла
-        file_extension = os.path.splitext(file_path)[1].lower()
-        supported_video_formats = ['.mp4']
-        supported_audio_formats = ['.m4a', '.mp3', '.wav']
+        # Проверка существования файла перед обработкой видео
+        if not File.objects.filter(id=file_id).exists():
+            logger.info(f"File {file_id} has been deleted. Stopping task.")
+            os.remove(temp_file_path)
+            return
 
-        if file_extension in supported_video_formats:
-            # Обработка видеофайлов
+        file_extension = os.path.splitext(file_path)[1].lower()
+        if file_extension in ['.mp4']:
+            # Обработка видеофайла
             clip = mp.VideoFileClip(temp_file_path)
             total_seconds = int(clip.duration)
             minutes = total_seconds // 60
             seconds = total_seconds % 60
             duration = f"{minutes} мин {seconds} сек"
             file_instance.duration = duration
+            file_instance.save()
 
-            # Извлечение аудиодорожки
+            # Извлечение аудиодорожки в байты
             with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_audio_file:
                 temp_audio_path = temp_audio_file.name
                 clip.audio.write_audiofile(temp_audio_path, codec='pcm_s16le')
-
-        elif file_extension in supported_audio_formats:
-            # Обработка аудиофайлов
+        elif file_extension in ['.m4a', '.mp3', '.wav']:
+            # Обработка аудиофайла
             audio = AudioSegment.from_file(temp_file_path)
-            total_seconds = len(audio) // 1000  # Длительность в секундах
+            total_seconds = len(audio) // 1000
             minutes = total_seconds // 60
             seconds = total_seconds % 60
             duration = f"{minutes} мин {seconds} сек"
             file_instance.duration = duration
-
-            # Конвертация в WAV
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_audio_file:
-                temp_audio_path = temp_audio_file.name
-                audio.export(temp_audio_path, format='wav')
-
-        else:
-            # Если формат файла не поддерживается
-            logger.error(f"Unsupported file format: {file_extension}")
-            file_instance.status = 'error'
-            file_instance.error_message = f"Unsupported file format: {file_extension}"
             file_instance.save()
-            os.remove(temp_file_path)
-            return
+
+            # Сохранение аудиофайла во временный файл
+            temp_audio_path = temp_file_path
 
         # Проверка существования файла перед отправкой на транскрипцию
         if not File.objects.filter(id=file_id).exists():
             logger.info(f"File {file_id} has been deleted. Stopping task.")
             os.remove(temp_file_path)
-            os.remove(temp_audio_path)
+            if file_extension in ['.m4a', '.mp3', '.wav']:
+                os.remove(temp_audio_path)
             return
 
-        # Отправка аудиофайла на транскрипцию
         with open(temp_audio_path, 'rb') as audio_file:
             audio_bytes = io.BytesIO(audio_file.read())
 
@@ -112,11 +104,13 @@ def process_file(self, file_id, file_path, analyze_text):
             logger.error(f"Error during transcription: {response.text}")
         file_instance.save()
 
-        # Удаление временных файлов
+        # Удаление временного файла
         os.remove(temp_file_path)
-        os.remove(temp_audio_path)
+        if file_extension in ['.m4a', '.mp3', '.wav']:
+            os.remove(temp_audio_path)
         logger.info(f"Finished process_file task for file ID: {file_id}")
     except Exception as e:
         file_instance.status = 'error'
         logger.error(f"Error processing file: {e}")
         file_instance.save()
+

@@ -49,6 +49,14 @@ class UploadFileAPIView(APIView):
 
                 file_path = None
                 if file:
+                    file_extension = os.path.splitext(file.name)[1].lower()
+                    if file_extension not in ['.mp4', '.m4a', '.mp3', '.wav']:
+                        logger.error(f"Unsupported file format: {file_extension}")
+                        return Response({
+                            'status_code': status.HTTP_400_BAD_REQUEST,
+                            'error': f"Unsupported file format: {file_extension}",
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
                     file_path = file.name
                     minio_client.put_object(
                         settings.AWS_STORAGE_BUCKET_NAME,
@@ -59,6 +67,14 @@ class UploadFileAPIView(APIView):
                 elif url:
                     response = requests.get(url)
                     file_path = os.path.basename(url)
+                    file_extension = os.path.splitext(file_path)[1].lower()
+                    if file_extension not in ['.mp4', '.m4a', '.mp3', '.wav']:
+                        logger.error(f"Unsupported file format: {file_extension}")
+                        return Response({
+                            'status_code': status.HTTP_400_BAD_REQUEST,
+                            'error': f"Unsupported file format: {file_extension}",
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
                     minio_client.put_object(
                         settings.AWS_STORAGE_BUCKET_NAME,
                         file_path,
@@ -105,6 +121,7 @@ class UploadFileAPIView(APIView):
                 'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
                 'error': 'Internal Server Error',
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class MyFilesAPIView(APIView):
