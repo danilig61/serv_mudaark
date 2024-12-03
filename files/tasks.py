@@ -75,7 +75,7 @@ def process_file(self, file_id, file_path, analyze_text):
 
         # Определение MIME-типа в зависимости от формата
         mime_types = {
-            '.mp4': 'video/mp4',
+            '.mp4': 'audio/wav',
             '.m4a': 'audio/mp4',
             '.mp3': 'audio/mpeg',
             '.wav': 'audio/wav',
