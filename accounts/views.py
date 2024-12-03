@@ -13,9 +13,8 @@ from .tasks import send_verification_email
 from rest_framework.views import APIView
 from rest_framework.response import Response
 import logging
-from google.auth.transport.requests import Request
-from google.oauth2 import id_token
 from django.conf import settings
+import requests
 
 
 logger = logging.getLogger(__name__)
@@ -298,49 +297,63 @@ class SocialLoginAPIView(APIView):
 
             logger.info("Access token received, verifying with Google")
 
-            # Пытаемся проверить токен и получить информацию о пользователе
-            try:
-                # Параметры для проверки access_token
-                idinfo = id_token.verify_oauth2_token(
-                    access_token, Request(), settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY
-                )
-                logger.info(f"User info retrieved from Google: {idinfo}")
+            # Проверяем access_token через Google API
+            google_token_info_url = "https://www.googleapis.com/oauth2/v1/tokeninfo"
+            response = requests.get(google_token_info_url, params={"access_token": access_token})
 
-                # Проверяем, существует ли пользователь с этим email
-                user, created = User.objects.get_or_create(email=idinfo['email'])
-
-                # Если пользователя нет, создаем нового
-                if created:
-                    user.first_name = idinfo.get('given_name', '')
-                    user.last_name = idinfo.get('family_name', '')
-                    user.save()
-                    logger.info(f"New user created: {user.email}")
-
-                # Генерируем Refresh и Access токены
-                refresh = RefreshToken.for_user(user)
-
-                logger.info("Tokens generated successfully")
-
-                return Response({
-                    "status_code": status.HTTP_200_OK,
-                    "message": "Login successful",
-                    "tokens": {
-                        "access": str(refresh.access_token),
-                        "refresh": str(refresh),
-                    },
-                    "user": {
-                        "id": user.id,
-                        "email": user.email,
-                        "name": user.get_full_name(),
-                    },
-                }, status=status.HTTP_200_OK)
-
-            except ValueError as e:
-                logger.error(f"Error verifying token: {e}")
+            if response.status_code != 200:
+                logger.error("Invalid token received from Google API")
                 return Response({
                     'status_code': status.HTTP_400_BAD_REQUEST,
                     'error': 'Invalid token',
                 }, status=status.HTTP_400_BAD_REQUEST)
+
+            idinfo = response.json()
+            logger.info(f"Google API token info: {idinfo}")
+
+            # Проверяем, совпадает ли audience с ожидаемым client_id
+            if idinfo.get("audience") != settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY:
+                logger.error("Token audience mismatch")
+                return Response({
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'Invalid token audience',
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Извлекаем информацию о пользователе
+            email = idinfo.get('email')
+            if not email:
+                logger.error("Email not found in token info")
+                return Response({
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'Email not found in token',
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Проверяем, существует ли пользователь с этим email
+            user, created = User.objects.get_or_create(email=email)
+
+            if created:
+                user.first_name = idinfo.get('given_name', '')
+                user.last_name = idinfo.get('family_name', '')
+                user.save()
+                logger.info(f"New user created: {user.email}")
+
+            # Генерируем Refresh и Access токены
+            refresh = RefreshToken.for_user(user)
+            logger.info("Tokens generated successfully")
+
+            return Response({
+                "status_code": status.HTTP_200_OK,
+                "message": "Login successful",
+                "tokens": {
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                },
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "name": user.get_full_name(),
+                },
+            }, status=status.HTTP_200_OK)
 
         except Exception as e:
             logger.error(f"Internal Server Error: {e}")
