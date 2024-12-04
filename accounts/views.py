@@ -286,7 +286,6 @@ class SocialLoginAPIView(APIView):
         try:
             logger.info("Starting SocialLoginAPIView post method")
 
-            # Получаем access_token с фронта
             access_token = request.data.get("access_token")
             if not access_token:
                 logger.error("Access token is required")
@@ -295,9 +294,6 @@ class SocialLoginAPIView(APIView):
                     'error': 'Access token is required',
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            logger.info("Access token received, verifying with Google")
-
-            # Проверяем access_token через Google API
             google_token_info_url = "https://www.googleapis.com/oauth2/v1/tokeninfo"
             response = requests.get(google_token_info_url, params={"access_token": access_token})
 
@@ -309,9 +305,6 @@ class SocialLoginAPIView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             idinfo = response.json()
-            logger.info(f"Google API token info: {idinfo}")
-
-            # Проверяем, совпадает ли audience с ожидаемым client_id
             if idinfo.get("audience") != settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY:
                 logger.error("Token audience mismatch")
                 return Response({
@@ -319,7 +312,6 @@ class SocialLoginAPIView(APIView):
                     'error': 'Invalid token audience',
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            # Извлекаем информацию о пользователе
             email = idinfo.get('email')
             if not email:
                 logger.error("Email not found in token info")
@@ -328,16 +320,24 @@ class SocialLoginAPIView(APIView):
                     'error': 'Email not found in token',
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            # Проверяем, существует ли пользователь с этим email
-            user, created = User.objects.get_or_create(email=email)
+            try:
+                user, created = User.objects.get_or_create(
+                    email=email,
+                    defaults={
+                        "username": email.split("@")[0],
+                        "first_name": idinfo.get("given_name", ""),
+                        "last_name": idinfo.get("family_name", ""),
+                    },
+                )
+                if created:
+                    logger.info(f"New user created: {user.email}")
+            except Exception as e:
+                logger.error(f"Error creating user: {e}")
+                return Response({
+                    'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    'error': 'Could not create user',
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            if created:
-                user.first_name = idinfo.get('given_name', '')
-                user.last_name = idinfo.get('family_name', '')
-                user.save()
-                logger.info(f"New user created: {user.email}")
-
-            # Генерируем Refresh и Access токены
             refresh = RefreshToken.for_user(user)
             logger.info("Tokens generated successfully")
 
@@ -361,7 +361,6 @@ class SocialLoginAPIView(APIView):
                 'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
                 'error': 'Internal Server Error',
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 class ResendVerificationCodeAPIView(APIView):
