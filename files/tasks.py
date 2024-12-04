@@ -101,19 +101,22 @@ def process_file(self, file_id, file_path, analyze_text):
 
 
 def convert_srt_to_text(srt_content):
-    # Преобразует содержимое SRT-файла в текст.
+    # Преобразует содержимое SRT-файла в чистый текст.
     try:
         import re
-        # Убираем временные метки
-        lines = srt_content.splitlines()
+        # Преобразование SRT из Unicode в читаемый текст
+        decoded_content = srt_content.encode('latin1').decode('unicode_escape')
+        # Убираем временные метки и порядковые номера
+        lines = decoded_content.splitlines()
         text_lines = []
         for line in lines:
-            # Пропускаем временные метки
+            # Пропускаем временные метки и числовые строки
             if re.match(r'^\d+$', line) or re.match(r'\d{2}:\d{2}:\d{2},\d{3}', line):
                 continue
             # Добавляем текстовые строки
             if line.strip():
                 text_lines.append(line.strip())
+
         return ' '.join(text_lines)
     except Exception as e:
         logger.error(f"Ошибка при преобразовании SRT в текст: {e}")
