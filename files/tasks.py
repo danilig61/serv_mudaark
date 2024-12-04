@@ -63,8 +63,12 @@ def process_file(self, file_id, file_path, analyze_text):
             )
 
         if response.status_code == 200:
-            transcription = response.text  # API возвращает строку
-            logger.info(f"Получена транскрипция: {transcription}")
+            # API возвращает SRT-файл в виде строки
+            srt_content = response.text
+            logger.info(f"Получен файл SRT, преобразование в текст.")
+
+            # Преобразование SRT в текст
+            transcription = convert_srt_to_text(srt_content)
             file_instance.transcription = transcription
             file_instance.status = 'completed'
 
@@ -94,3 +98,23 @@ def process_file(self, file_id, file_path, analyze_text):
         logger.error(f"Ошибка при обработке файла: {e}")
         file_instance.status = 'error'
         file_instance.save()
+
+
+def convert_srt_to_text(srt_content):
+    # Преобразует содержимое SRT-файла в текст.
+    try:
+        import re
+        # Убираем временные метки
+        lines = srt_content.splitlines()
+        text_lines = []
+        for line in lines:
+            # Пропускаем временные метки
+            if re.match(r'^\d+$', line) or re.match(r'\d{2}:\d{2}:\d{2},\d{3}', line):
+                continue
+            # Добавляем текстовые строки
+            if line.strip():
+                text_lines.append(line.strip())
+        return ' '.join(text_lines)
+    except Exception as e:
+        logger.error(f"Ошибка при преобразовании SRT в текст: {e}")
+        return ""

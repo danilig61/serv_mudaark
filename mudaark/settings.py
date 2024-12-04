@@ -138,7 +138,7 @@ SOCIAL_AUTH_PIPELINE = (
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['profile', 'email']
 SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = ['first_name', 'last_name']
 SOCIAL_AUTH_YANDEX_OAUTH2_SCOPE = ['login:email', 'login:info']
-SOCIAL_AUTH_YANDEX_OAUTH2_EXTRA_DATA = ['id', 'email']
+SOCIAL_AUTH_YANDEX_OAUTH2_EXTRA_DATA = ['id', 'email', 'first_name', 'last_name']
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

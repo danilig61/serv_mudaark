@@ -279,7 +279,7 @@ class MainAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class SocialLoginAPIView(APIView):
+class GoogleLoginAPIView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
@@ -338,6 +338,97 @@ class SocialLoginAPIView(APIView):
                     'error': 'Could not create user',
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+            refresh = RefreshToken.for_user(user)
+            logger.info("Tokens generated successfully")
+
+            return Response({
+                "status_code": status.HTTP_200_OK,
+                "message": "Login successful",
+                "tokens": {
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                },
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "name": user.get_full_name(),
+                },
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Internal Server Error: {e}")
+            return Response({
+                'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
+                'error': 'Internal Server Error',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class YandexLoginAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            logger.info("Starting YandexLoginAPIView post method")
+
+            # Получаем access_token с фронта
+            access_token = request.data.get("access_token")
+            if not access_token:
+                logger.error("Access token is required")
+                return Response({
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'Access token is required',
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            logger.info("Access token received, verifying with Yandex")
+
+            # Проверяем access_token через API Яндекса
+            yandex_token_info_url = "https://login.yandex.ru/info"
+            response = requests.get(yandex_token_info_url, headers={
+                "Authorization": f"OAuth {access_token}"
+            })
+
+            if response.status_code != 200:
+                logger.error("Invalid token received from Yandex API")
+                return Response({
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'Invalid token',
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            user_info = response.json()
+            logger.info(f"Yandex API user info: {user_info}")
+
+            # Извлекаем данные
+            email = user_info.get('default_email')
+            if not email:
+                logger.error("Email not found in Yandex user info")
+                return Response({
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'Email not found in Yandex user info',
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            first_name = user_info.get('first_name', '')
+            last_name = user_info.get('last_name', '')
+
+            # Проверяем или создаем пользователя
+            try:
+                user, created = User.objects.get_or_create(
+                    email=email,
+                    defaults={
+                        "username": email.split("@")[0],
+                        "first_name": first_name,
+                        "last_name": last_name,
+                    },
+                )
+                if created:
+                    logger.info(f"New user created: {user.email}")
+            except Exception as e:
+                logger.error(f"Error creating user: {e}")
+                return Response({
+                    'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    'error': 'Could not create user',
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # Генерируем токены
             refresh = RefreshToken.for_user(user)
             logger.info("Tokens generated successfully")
 
