@@ -370,27 +370,17 @@ class YandexLoginAPIView(APIView):
         try:
             logger.info("Starting YandexLoginAPIView post method")
 
-            # Получаем access_token и state с фронта
             access_token = request.data.get("access_token")
-            received_state = request.data.get("state")
-
-            if not access_token or not received_state:
+            state = request.data.get("state")
+            if not access_token or not state:
                 logger.error("Access token and state are required")
                 return Response({
                     'status_code': status.HTTP_400_BAD_REQUEST,
                     'error': 'Access token and state are required',
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            # Сравниваем state с сохранённым значением
-            expected_state = request.session.get("oauth_state")
-            if received_state != expected_state:
-                logger.error("Invalid state parameter")
-                return Response({
-                    'status_code': status.HTTP_400_BAD_REQUEST,
-                    'error': 'Invalid state parameter',
-                }, status=status.HTTP_400_BAD_REQUEST)
+            logger.info("Access token and state received, verifying with Yandex")
 
-            # Проверяем access_token через API Яндекса
             yandex_token_info_url = "https://login.yandex.ru/info"
             response = requests.get(yandex_token_info_url, headers={
                 "Authorization": f"OAuth {access_token}"
@@ -406,7 +396,6 @@ class YandexLoginAPIView(APIView):
             user_info = response.json()
             logger.info(f"Yandex API user info: {user_info}")
 
-            # Извлекаем данные
             email = user_info.get('default_email')
             if not email:
                 logger.error("Email not found in Yandex user info")
@@ -418,7 +407,6 @@ class YandexLoginAPIView(APIView):
             first_name = user_info.get('first_name', '')
             last_name = user_info.get('last_name', '')
 
-            # Проверяем или создаем пользователя
             try:
                 user, created = User.objects.get_or_create(
                     email=email,
@@ -437,7 +425,6 @@ class YandexLoginAPIView(APIView):
                     'error': 'Could not create user',
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            # Генерируем токены
             refresh = RefreshToken.for_user(user)
             logger.info("Tokens generated successfully")
 
