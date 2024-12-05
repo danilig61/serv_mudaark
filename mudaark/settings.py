@@ -119,11 +119,7 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'http://mu.daark-team.ru/auth/complete/
 SOCIAL_AUTH_YANDEX_OAUTH2_KEY = '81e338006fc040c782f04a59429ef02e'
 SOCIAL_AUTH_YANDEX_OAUTH2_SECRET = 'e952f20146314a6bb4cb966a7834c173'
 SOCIAL_AUTH_YANDEX_OAUTH2_REDIRECT_URI = 'https://mu.daark-team.ru/auth/complete/yandex-oauth2/'
-
-SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/files/my_files/'  # Куда перенаправлять после успешной авторизации
-SOCIAL_AUTH_LOGIN_ERROR_URL = '/auth/error/'         # Куда перенаправлять в случае ошибки
-SOCIAL_AUTH_STATE_PARAMETER = True                  # Проверяем параметр `state`
-SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
+LOGIN_REDIRECT_URL = "/files/my_files/"
 
 SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',
