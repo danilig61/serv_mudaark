@@ -124,7 +124,7 @@ LOGIN_REDIRECT_URL = "/files/my_files/"
 
 SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',
-    'social_core.pipeline.social_auth.social_uid',
+    'social_core.pipeline.social_auth.social_uid',  # This ensures the UID is extracted.
     'social_core.pipeline.social_auth.auth_allowed',
     'social_core.pipeline.social_auth.social_user',
     'social_core.pipeline.user.get_username',
@@ -139,8 +139,6 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['profile', 'email']
 SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = ['first_name', 'last_name']
 SOCIAL_AUTH_YANDEX_OAUTH2_SCOPE = ['login:email', 'login:info']
 SOCIAL_AUTH_YANDEX_OAUTH2_EXTRA_DATA = ['id', 'email', 'first_name', 'last_name']
-SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
-SOCIAL_AUTH_REDIRECT_STATE = True
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

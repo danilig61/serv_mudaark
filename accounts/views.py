@@ -363,61 +363,95 @@ class GoogleLoginAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-YANDEX_CLIENT_ID = "81e338006fc040c782f04a59429ef02e"
-YANDEX_CLIENT_SECRET = "e952f20146314a6bb4cb966a7834c173"
-YANDEX_TOKEN_URL = "https://oauth.yandex.ru/token"
-YANDEX_USER_INFO_URL = "https://login.yandex.ru/info"
-
-
 class YandexLoginAPIView(APIView):
-    def post(self, request):
-        """Обрабатывает токен, полученный с фронтенда, и создает пользователя."""
-        code = request.data.get("code")  # Получаем код авторизации
-        if not code:
-            return Response({"error": "Code is required"}, status=status.HTTP_400_BAD_REQUEST)
+    permission_classes = [AllowAny]
 
-        # Обмен кода на токен
-        data = {
-            "grant_type": "authorization_code",
-            "code": code,
-            "client_id": YANDEX_CLIENT_ID,
-            "client_secret": YANDEX_CLIENT_SECRET,
-        }
-
+    def post(self, request, *args, **kwargs):
         try:
-            token_response = requests.post(YANDEX_TOKEN_URL, data=data)
-            token_response.raise_for_status()
-            tokens = token_response.json()
-        except requests.exceptions.RequestException as e:
-            return Response({"error": "Failed to retrieve tokens", "details": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            logger.info("Starting YandexLoginAPIView post method")
 
-        # Получение данных пользователя
-        access_token = tokens.get("access_token")
-        try:
-            user_info_response = requests.get(YANDEX_USER_INFO_URL, headers={"Authorization": f"Bearer {access_token}"})
-            user_info_response.raise_for_status()
-            user_info = user_info_response.json()
-        except requests.exceptions.RequestException as e:
-            return Response({"error": "Failed to retrieve user info", "details": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            # Получаем access_token с фронта
+            access_token = request.data.get("access_token")
+            if not access_token:
+                logger.error("Access token is required")
+                return Response({
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'Access token is required',
+                }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Создаем пользователя или получаем существующего
-        from django.contrib.auth.models import User
+            logger.info("Access token received, verifying with Yandex")
 
-        user, _ = User.objects.get_or_create(
-            username=user_info.get("id"),
-            defaults={
-                "first_name": user_info.get("first_name", ""),
-                "last_name": user_info.get("last_name", ""),
-                "email": user_info.get("default_email", ""),
-            }
-        )
+            # Проверяем access_token через API Яндекса
+            yandex_token_info_url = "https://login.yandex.ru/info"
+            response = requests.get(yandex_token_info_url, headers={
+                "Authorization": f"OAuth {access_token}"
+            })
 
-        # Генерируем JWT токены
-        refresh = RefreshToken.for_user(user)
-        return Response({
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-        }, status=status.HTTP_200_OK)
+            if response.status_code != 200:
+                logger.error("Invalid token received from Yandex API")
+                return Response({
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'Invalid token',
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            user_info = response.json()
+            logger.info(f"Yandex API user info: {user_info}")
+
+            # Извлекаем данные
+            email = user_info.get('default_email')
+            if not email:
+                logger.error("Email not found in Yandex user info")
+                return Response({
+                    'status_code': status.HTTP_400_BAD_REQUEST,
+                    'error': 'Email not found in Yandex user info',
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            first_name = user_info.get('first_name', '')
+            last_name = user_info.get('last_name', '')
+
+            # Проверяем или создаем пользователя
+            try:
+                user, created = User.objects.get_or_create(
+                    email=email,
+                    defaults={
+                        "username": email.split("@")[0],
+                        "first_name": first_name,
+                        "last_name": last_name,
+                    },
+                )
+                if created:
+                    logger.info(f"New user created: {user.email}")
+            except Exception as e:
+                logger.error(f"Error creating user: {e}")
+                return Response({
+                    'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    'error': 'Could not create user',
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # Генерируем токены
+            refresh = RefreshToken.for_user(user)
+            logger.info("Tokens generated successfully")
+
+            return Response({
+                "status_code": status.HTTP_200_OK,
+                "message": "Login successful",
+                "tokens": {
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                },
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "name": user.get_full_name(),
+                },
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Internal Server Error: {e}")
+            return Response({
+                'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
+                'error': 'Internal Server Error',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ResendVerificationCodeAPIView(APIView):
