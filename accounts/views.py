@@ -363,48 +363,61 @@ class GoogleLoginAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+YANDEX_CLIENT_ID = "81e338006fc040c782f04a59429ef02e"
+YANDEX_CLIENT_SECRET = "e952f20146314a6bb4cb966a7834c173"
+YANDEX_TOKEN_URL = "https://oauth.yandex.ru/token"
+YANDEX_USER_INFO_URL = "https://login.yandex.ru/info"
+
+
 class YandexLoginAPIView(APIView):
-    permission_classes = [AllowAny]
+    def post(self, request):
+        """Обрабатывает токен, полученный с фронтенда, и создает пользователя."""
+        code = request.data.get("code")  # Получаем код авторизации
+        if not code:
+            return Response({"error": "Code is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-    def post(self, request, *args, **kwargs):
+        # Обмен кода на токен
+        data = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "client_id": YANDEX_CLIENT_ID,
+            "client_secret": YANDEX_CLIENT_SECRET,
+        }
+
         try:
-            access_token = request.data.get("access_token")
-            if not access_token:
-                return Response({"error": "Access token is required"}, status=status.HTTP_400_BAD_REQUEST)
+            token_response = requests.post(YANDEX_TOKEN_URL, data=data)
+            token_response.raise_for_status()
+            tokens = token_response.json()
+        except requests.exceptions.RequestException as e:
+            return Response({"error": "Failed to retrieve tokens", "details": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-            yandex_token_info_url = "https://login.yandex.ru/info"
-            response = requests.get(
-                yandex_token_info_url,
-                headers={"Authorization": f"OAuth {access_token}"}
-            )
+        # Получение данных пользователя
+        access_token = tokens.get("access_token")
+        try:
+            user_info_response = requests.get(YANDEX_USER_INFO_URL, headers={"Authorization": f"Bearer {access_token}"})
+            user_info_response.raise_for_status()
+            user_info = user_info_response.json()
+        except requests.exceptions.RequestException as e:
+            return Response({"error": "Failed to retrieve user info", "details": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-            if response.status_code != 200:
-                return Response({"error": "Invalid Yandex token"}, status=status.HTTP_400_BAD_REQUEST)
+        # Создаем пользователя или получаем существующего
+        from django.contrib.auth.models import User
 
-            user_info = response.json()
-            email = user_info.get("default_email")
-            first_name = user_info.get("first_name", "")
-            last_name = user_info.get("last_name", "")
+        user, _ = User.objects.get_or_create(
+            username=user_info.get("id"),
+            defaults={
+                "first_name": user_info.get("first_name", ""),
+                "last_name": user_info.get("last_name", ""),
+                "email": user_info.get("default_email", ""),
+            }
+        )
 
-            user, created = User.objects.get_or_create(
-                email=email,
-                defaults={"first_name": first_name, "last_name": last_name}
-            )
-
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                "tokens": {
-                    "access": str(refresh.access_token),
-                    "refresh": str(refresh),
-                },
-                "user": {
-                    "email": user.email,
-                    "first_name": user.first_name,
-                    "last_name": user.last_name,
-                },
-            })
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # Генерируем JWT токены
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+        }, status=status.HTTP_200_OK)
 
 
 class ResendVerificationCodeAPIView(APIView):
