@@ -366,12 +366,12 @@ class GoogleLoginAPIView(APIView):
 class YandexLoginAPIView(APIView):
     permission_classes = [AllowAny]
 
-    def post(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         try:
-            logger.info("Starting YandexLoginAPIView post method")
+            logger.info("Starting YandexLoginAPIView get method")
 
-            access_token = request.data.get("access_token")
-            state = request.data.get("state")
+            access_token = request.query_params.get("access_token")
+            state = request.query_params.get("state")
             if not access_token or not state:
                 logger.error("Access token and state are required")
                 return Response({
