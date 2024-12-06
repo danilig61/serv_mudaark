@@ -61,11 +61,14 @@ def process_file(self, file_id, file_path, analyze_text):
                 'http://94.130.54.172:8040/transcribe',
                 files={'audio': (os.path.basename(file_path), audio_file, mime_type)}
             )
+        logger.info(f"Status code: {response.status_code}")
+        logger.info(f"Response headers: {response.headers}")
+        logger.info(f"Response content: {response.text}")
 
         if response.status_code == 200:
             # API возвращает SRT-файл в виде строки
             srt_content = response.text
-            logger.info(f"Получен файл SRT, преобразование в текст.")
+            logger.info(f"Получен файл {response.text} SRT, преобразование в текст.")
 
             # Преобразование SRT в текст
             transcription = convert_srt_to_text(srt_content)
