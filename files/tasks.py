@@ -7,6 +7,8 @@ from .config import minio_client
 from .models import File
 import logging
 from django.conf import settings
+from moviepy.editor import VideoFileClip
+from pydub import AudioSegment
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +19,7 @@ SUPPORTED_FORMATS = {
     '.wav': 'audio/wav',
     '.m4a': 'audio/mp4',
 }
+
 
 @shared_task(bind=True)
 def process_file(self, file_id, file_path, analyze_text):
@@ -52,6 +55,26 @@ def process_file(self, file_id, file_path, analyze_text):
             file_instance.status = 'error'
             file_instance.save()
             return
+
+        # Обработка видеофайла
+        if file_extension == '.mp4':
+            clip = VideoFileClip(temp_file_path)
+            total_seconds = int(clip.duration)
+            minutes = total_seconds // 60
+            seconds = total_seconds % 60
+            duration = f"{minutes} мин {seconds} сек"
+            file_instance.duration = duration
+            file_instance.save()
+
+        # Обработка аудиофайлов
+        elif file_extension in ['.mp3', '.wav', '.m4a']:
+            audio = AudioSegment.from_file(temp_file_path, format=file_extension[1:])
+            total_seconds = int(audio.duration_seconds)
+            minutes = total_seconds // 60
+            seconds = total_seconds % 60
+            duration = f"{minutes} мин {seconds} сек"
+            file_instance.duration = duration
+            file_instance.save()
 
         logger.info(f"Отправка файла {file_path} на транскрипцию ({file_extension}).")
 
