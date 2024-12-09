@@ -452,7 +452,6 @@ class YandexLoginAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
 class ResendVerificationCodeAPIView(APIView):
     permission_classes = [AllowAny]
 
