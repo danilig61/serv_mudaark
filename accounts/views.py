@@ -366,22 +366,20 @@ class GoogleLoginAPIView(APIView):
 class YandexLoginAPIView(APIView):
     permission_classes = [AllowAny]
 
-    def get(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         try:
-            logger.info("Starting YandexLoginAPIView get method")
+            logger.info("Starting YandexLoginAPIView post method")
 
-            access_token = request.query_params.get("access_token")
-            state = request.query_params.get("state")
-            if not access_token or not state:
-                logger.error("Access token and state are required")
+            access_token = request.data.get("access_token")
+            if not access_token:
+                logger.error("Access token is required")
                 return Response({
                     'status_code': status.HTTP_400_BAD_REQUEST,
-                    'error': 'Access token and state are required',
+                    'error': 'Access token is required',
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            logger.info("Access token and state received, verifying with Yandex")
+            logger.info("Access token received, verifying with Yandex")
             logger.info(f"Access Token: {access_token}")
-            logger.info(f"State: {state}")
 
             yandex_token_info_url = "https://login.yandex.ru/info"
             response = requests.get(yandex_token_info_url, headers={
