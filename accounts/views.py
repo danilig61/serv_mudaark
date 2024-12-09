@@ -380,6 +380,8 @@ class YandexLoginAPIView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             logger.info("Access token and state received, verifying with Yandex")
+            logger.info(f"Access Token: {access_token}")
+            logger.info(f"State: {state}")
 
             yandex_token_info_url = "https://login.yandex.ru/info"
             response = requests.get(yandex_token_info_url, headers={
@@ -448,6 +450,7 @@ class YandexLoginAPIView(APIView):
                 'status_code': status.HTTP_500_INTERNAL_SERVER_ERROR,
                 'error': 'Internal Server Error',
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class ResendVerificationCodeAPIView(APIView):
