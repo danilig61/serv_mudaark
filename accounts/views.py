@@ -1,7 +1,6 @@
 import random
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from django.views.decorators.csrf import csrf_exempt
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status, viewsets
@@ -363,7 +362,7 @@ class GoogleLoginAPIView(APIView):
                 'error': 'Internal Server Error',
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@csrf_exempt
+
 class YandexLoginAPIView(APIView):
     permission_classes = [AllowAny]
 
